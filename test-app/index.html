@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RxForge Sync Tester</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 13px;
+      background: #0d1117;
+      color: #c9d1d9;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header h1 { font-size: 15px; color: #f0f6fc; font-weight: 600; }
+
+    .badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #8b949e;
+    }
+
+    .badge.ok { background: #0d4429; border-color: #196c2e; color: #3fb950; }
+    .badge.err { background: #4c1212; border-color: #8e0000; color: #f85149; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      height: calc(100vh - 45px);
+    }
+
+    .sidebar {
+      background: #161b22;
+      border-right: 1px solid #30363d;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .panel {
+      border-bottom: 1px solid #30363d;
+      padding: 14px;
+    }
+
+    .panel h2 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #8b949e;
+      margin-bottom: 10px;
+    }
+
+    .main { display: flex; flex-direction: column; overflow: hidden; }
+
+    .tabs {
+      display: flex;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      padding: 0 16px;
+    }
+
+    .tab {
+      padding: 10px 14px;
+      cursor: pointer;
+      color: #8b949e;
+      border-bottom: 2px solid transparent;
+      font-size: 12px;
+      font-family: inherit;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+    }
+
+    .tab.active { color: #f0f6fc; border-bottom-color: #1f6feb; }
+    .tab:hover:not(.active) { color: #c9d1d9; }
+
+    .tab-content { display: none; flex: 1; overflow-y: auto; padding: 16px; }
+    .tab-content.active { display: flex; flex-direction: column; gap: 12px; }
+
+    input, textarea, select {
+      width: 100%;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #c9d1d9;
+      font-family: inherit;
+      font-size: 12px;
+      padding: 6px 10px;
+      outline: none;
+    }
+
+    input:focus, textarea:focus, select:focus { border-color: #1f6feb; }
+
+    label { display: block; font-size: 11px; color: #8b949e; margin-bottom: 4px; }
+
+    .field { display: flex; flex-direction: column; gap: 4px; }
+
+    button {
+      font-family: inherit;
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid;
+      transition: opacity 0.1s;
+    }
+
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-primary {
+      background: #1f6feb;
+      border-color: #388bfd;
+      color: #fff;
+    }
+    .btn-primary:hover:not(:disabled) { background: #388bfd; }
+
+    .btn-success {
+      background: #196c2e;
+      border-color: #2ea043;
+      color: #3fb950;
+    }
+    .btn-success:hover:not(:disabled) { background: #2ea043; color: #fff; }
+
+    .btn-danger {
+      background: #4c1212;
+      border-color: #8e0000;
+      color: #f85149;
+    }
+    .btn-danger:hover:not(:disabled) { background: #6d1a1a; }
+
+    .btn-ghost {
+      background: transparent;
+      border-color: #30363d;
+      color: #8b949e;
+    }
+    .btn-ghost:hover:not(:disabled) { border-color: #8b949e; color: #c9d1d9; }
+
+    .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .output {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 10px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-size: 11px;
+      max-height: 300px;
+      overflow-y: auto;
+      color: #c9d1d9;
+      flex: 1;
+      min-height: 80px;
+    }
+
+    .output.stream-box {
+      max-height: none;
+      flex: 1;
+      font-size: 11px;
+    }
+
+    .log-line { padding: 2px 0; border-bottom: 1px solid #21262d; }
+    .log-line:last-child { border-bottom: none; }
+    .log-line.info { color: #79c0ff; }
+    .log-line.success { color: #3fb950; }
+    .log-line.error { color: #f85149; }
+    .log-line.data { color: #c9d1d9; }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      border-bottom: 1px solid #21262d;
+    }
+
+    .stat-row:last-child { border-bottom: none; }
+    .stat-key { color: #8b949e; }
+    .stat-val { color: #f0f6fc; font-weight: 600; }
+
+    .app-item {
+      padding: 6px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .app-item:hover { background: #21262d; }
+    .app-item.selected { background: #1c2a3e; border: 1px solid #1f6feb; }
+
+    .app-id {
+      font-size: 10px;
+      color: #8b949e;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .chip {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 10px;
+      white-space: nowrap;
+    }
+
+    .chip-blue { background: #1c2a3e; border: 1px solid #1f6feb; color: #79c0ff; }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .section-head h2 { margin-bottom: 0; }
+
+    textarea { resize: vertical; }
+
+    .stream-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #8b949e;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #30363d;
+    }
+    .dot.live { background: #3fb950; animation: pulse 1.5s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .checkpoint-display {
+      font-size: 10px;
+      color: #8b949e;
+      padding: 4px 8px;
+      background: #21262d;
+      border-radius: 4px;
+      word-break: break-all;
+    }
+
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .no-app-warning {
+      padding: 20px;
+      text-align: center;
+      color: #8b949e;
+      border: 1px dashed #30363d;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ RxForge Sync Tester</h1>
+  <span id="auth-badge" class="badge">Not authenticated</span>
+  <span id="app-badge" class="badge" style="display:none"></span>
+  <span style="margin-left:auto; font-size:11px; color:#8b949e;">
+    Backend: <input id="backend-url" value="http://localhost:8080" style="width:180px; display:inline; padding:2px 6px; font-size:11px;" />
+  </span>
+</header>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <div class="sidebar">
+
+    <div class="panel">
+      <h2>Authentication</h2>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="field">
+          <label>Email</label>
+          <input id="email" type="email" value="test@rxforge.dev" placeholder="email" />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input id="password" type="password" value="testpass123" placeholder="password" />
+        </div>
+        <div class="btn-row">
+          <button class="btn-primary" onclick="doRegister()" style="flex:1">Register</button>
+          <button class="btn-ghost" onclick="doLogin()" style="flex:1">Login</button>
+        </div>
+        <div id="auth-out" class="output" style="min-height:50px; font-size:10px;"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="section-head">
+        <h2>Apps</h2>
+        <button class="btn-ghost" style="padding:2px 8px; font-size:11px;" onclick="loadApps()">↻</button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="field">
+          <label>App Name</label>
+          <input id="app-name" value="test-app" />
+        </div>
+        <button class="btn-success" onclick="createApp()">+ Create App</button>
+        <div id="apps-list" style="display:flex; flex-direction:column; gap:4px; margin-top:4px;"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>State</h2>
+      <div id="state-display" style="display:flex; flex-direction:column; gap:4px;">
+        <div class="stat-row"><span class="stat-key">Token</span><span class="stat-val" id="st-token">—</span></div>
+        <div class="stat-row"><span class="stat-key">App ID</span><span class="stat-val" id="st-app">—</span></div>
+        <div class="stat-row"><span class="stat-key">Checkpoint</span><span class="stat-val" id="st-ckpt">none</span></div>
+        <div class="stat-row"><span class="stat-key">Docs pulled</span><span class="stat-val" id="st-pulled">0</span></div>
+        <div class="stat-row"><span class="stat-key">Docs pushed</span><span class="stat-val" id="st-pushed">0</span></div>
+        <div class="stat-row"><span class="stat-key">Stream events</span><span class="stat-val" id="st-events">0</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('pull', this)">Pull</button>
+      <button class="tab" onclick="switchTab('push', this)">Push</button>
+      <button class="tab" onclick="switchTab('stream', this)">Stream</button>
+      <button class="tab" onclick="switchTab('docs', this)">Local Docs</button>
+    </div>
+
+    <!-- PULL TAB -->
+    <div id="tab-pull" class="tab-content active">
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <button class="btn-primary" onclick="doPull()">Pull changes</button>
+        <button class="btn-ghost" onclick="doPullFull()">Pull (reset checkpoint)</button>
+        <div class="field" style="flex:1; min-width:160px;">
+          <label>Limit</label>
+          <input id="pull-limit" type="number" value="100" min="1" max="1000" />
+        </div>
+      </div>
+      <div>
+        <label style="margin-bottom:4px; display:block;">Current checkpoint</label>
+        <div class="checkpoint-display" id="ckpt-display">none</div>
+      </div>
+      <label>Response</label>
+      <div id="pull-out" class="output" style="flex:1;"></div>
+    </div>
+
+    <!-- PUSH TAB -->
+    <div id="tab-push" class="tab-content">
+      <div class="field">
+        <label>Document JSON (single doc or array)</label>
+        <textarea id="push-doc" rows="10">{
+  "id": "doc-001",
+  "title": "Hello RxForge",
+  "body": "Testing sync push",
+  "updatedAt": 1700000000000
+}</textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="doPush()">Push document(s)</button>
+        <button class="btn-ghost" onclick="generateDoc()">Generate random doc</button>
+        <button class="btn-ghost" onclick="generateBatch()">Generate batch (10)</button>
+      </div>
+      <label>Response</label>
+      <div id="push-out" class="output" style="flex:1;"></div>
+    </div>
+
+    <!-- STREAM TAB -->
+    <div id="tab-stream" class="tab-content">
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <button class="btn-success" id="stream-btn" onclick="toggleStream()">▶ Start Stream</button>
+        <div class="stream-status">
+          <div class="dot" id="stream-dot"></div>
+          <span id="stream-label">Disconnected</span>
+        </div>
+        <button class="btn-ghost" onclick="clearStreamLog()" style="margin-left:auto;">Clear</button>
+      </div>
+      <div id="stream-out" class="output stream-box"></div>
+    </div>
+
+    <!-- LOCAL DOCS TAB -->
+    <div id="tab-docs" class="tab-content">
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span style="color:#8b949e; font-size:12px;">Documents in local store:</span>
+        <span id="doc-count" class="chip chip-blue">0</span>
+        <button class="btn-ghost" onclick="clearLocalDocs()" style="margin-left:auto;">Clear all</button>
+      </div>
+      <div id="docs-out" class="output" style="flex:1;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── State ─────────────────────────────────────────────────────────────────
+  let token = null;
+  let appId = null;
+  let checkpoint = null;
+  let localDocs = {};
+  let streamSource = null;
+  let statPulled = 0, statPushed = 0, statEvents = 0;
+
+  function base() { return document.getElementById('backend-url').value.replace(/\/$/, ''); }
+
+  // ── UI helpers ─────────────────────────────────────────────────────────────
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  function setOut(id, text, cls = 'data') {
+    const el = document.getElementById(id);
+    el.innerHTML = `<div class="log-line ${cls}">${escHtml(text)}</div>`;
+  }
+
+  function appendStream(text, cls = 'data') {
+    const el = document.getElementById('stream-out');
+    const ts = new Date().toISOString().substring(11, 23);
+    el.innerHTML += `<div class="log-line ${cls}">[${ts}] ${escHtml(text)}</div>`;
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function updateStats() {
+    document.getElementById('st-token').textContent = token ? token.substring(0, 16) + '…' : '—';
+    document.getElementById('st-app').textContent   = appId  ? appId.substring(0, 8) + '…' : '—';
+    document.getElementById('st-ckpt').textContent  = checkpoint || 'none';
+    document.getElementById('st-pulled').textContent  = statPulled;
+    document.getElementById('st-pushed').textContent  = statPushed;
+    document.getElementById('st-events').textContent  = statEvents;
+    document.getElementById('ckpt-display').textContent = checkpoint || 'none';
+    renderDocs();
+
+    const ab = document.getElementById('auth-badge');
+    if (token) { ab.textContent = 'Authenticated'; ab.className = 'badge ok'; }
+    else       { ab.textContent = 'Not authenticated'; ab.className = 'badge'; }
+
+    const appb = document.getElementById('app-badge');
+    if (appId) { appb.textContent = 'App: ' + appId.substring(0,8) + '…'; appb.style.display = ''; appb.className = 'badge chip-blue'; }
+    else       { appb.style.display = 'none'; }
+  }
+
+  function renderDocs() {
+    const keys = Object.keys(localDocs);
+    document.getElementById('doc-count').textContent = keys.length;
+    document.getElementById('docs-out').textContent = keys.length === 0
+      ? '(empty)'
+      : JSON.stringify(Object.values(localDocs), null, 2);
+  }
+
+  // ── API helper ─────────────────────────────────────────────────────────────
+  async function api(method, path, body) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const res = await fetch(base() + path, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = text; }
+    return { ok: res.ok, status: res.status, data };
+  }
+
+  // ── Auth ───────────────────────────────────────────────────────────────────
+  async function doRegister() {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    try {
+      const r = await api('POST', '/api/v1/auth/register', { email, password });
+      if (r.ok) {
+        token = r.data.token;
+        setOut('auth-out', '✓ Registered\n' + JSON.stringify(r.data, null, 2), 'success');
+      } else {
+        setOut('auth-out', '✗ ' + JSON.stringify(r.data), 'error');
+      }
+    } catch (e) { setOut('auth-out', '✗ ' + e.message, 'error'); }
+    updateStats();
+  }
+
+  async function doLogin() {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    try {
+      const r = await api('POST', '/api/v1/auth/login', { email, password });
+      if (r.ok) {
+        token = r.data.token;
+        setOut('auth-out', '✓ Logged in\n' + JSON.stringify(r.data, null, 2), 'success');
+        await loadApps();
+      } else {
+        setOut('auth-out', '✗ ' + JSON.stringify(r.data), 'error');
+      }
+    } catch (e) { setOut('auth-out', '✗ ' + e.message, 'error'); }
+    updateStats();
+  }
+
+  // ── Apps ───────────────────────────────────────────────────────────────────
+  async function createApp() {
+    const name = document.getElementById('app-name').value || 'test-app';
+    try {
+      const r = await api('POST', '/api/v1/apps', { name, redirect_uris: ['http://localhost:5173'] });
+      if (r.ok) {
+        appId = r.data.id;
+        checkpoint = null;
+        updateStats();
+        await loadApps();
+      } else {
+        alert('Create app failed: ' + JSON.stringify(r.data));
+      }
+    } catch (e) { alert('Error: ' + e.message); }
+  }
+
+  async function loadApps() {
+    if (!token) return;
+    try {
+      const r = await api('GET', '/api/v1/apps');
+      if (!r.ok) return;
+      const apps = r.data;
+      const el = document.getElementById('apps-list');
+      el.innerHTML = '';
+      apps.forEach(app => {
+        const div = document.createElement('div');
+        div.className = 'app-item' + (app.id === appId ? ' selected' : '');
+        div.innerHTML = `
+          <div>
+            <div style="font-size:12px; color:#c9d1d9;">${escHtml(app.name)}</div>
+            <div class="app-id">${app.id}</div>
+          </div>
+          <span class="chip chip-blue" style="cursor:pointer;" onclick="selectApp('${app.id}')">Select</span>
+        `;
+        el.appendChild(div);
+      });
+    } catch {}
+  }
+
+  function selectApp(id) {
+    appId = id;
+    checkpoint = null;
+    stopStream();
+    updateStats();
+    loadApps();
+  }
+
+  // ── Pull ───────────────────────────────────────────────────────────────────
+  async function doPull(resetCkpt = false) {
+    if (!appId) { setOut('pull-out', '✗ No app selected', 'error'); return; }
+    if (resetCkpt) checkpoint = null;
+    const limit = document.getElementById('pull-limit').value || 100;
+    let url = `/api/v1/sync/${appId}/pull?limit=${limit}`;
+    if (checkpoint) url += `&checkpoint=${encodeURIComponent(checkpoint)}`;
+    try {
+      const r = await api('GET', url);
+      if (r.ok) {
+        const prev = checkpoint;
+        checkpoint = r.data.checkpoint ?? checkpoint;
+        const docs = r.data.documents ?? [];
+        docs.forEach(d => { if (d && d.id) localDocs[d.id] = d; });
+        statPulled += docs.length;
+        setOut('pull-out',
+          `✓ ${docs.length} doc(s) pulled  |  checkpoint: ${prev || 'none'} → ${checkpoint}\n\n` +
+          JSON.stringify(r.data, null, 2), 'success');
+      } else {
+        setOut('pull-out', `✗ ${r.status}: ${JSON.stringify(r.data)}`, 'error');
+      }
+    } catch (e) { setOut('pull-out', '✗ ' + e.message, 'error'); }
+    updateStats();
+  }
+
+  function doPullFull() { doPull(true); }
+
+  // ── Push ───────────────────────────────────────────────────────────────────
+  async function doPush() {
+    if (!appId) { setOut('push-out', '✗ No app selected', 'error'); return; }
+    let raw;
+    try { raw = JSON.parse(document.getElementById('push-doc').value); }
+    catch (e) { setOut('push-out', '✗ Invalid JSON: ' + e.message, 'error'); return; }
+    const docs = Array.isArray(raw) ? raw : [raw];
+    try {
+      const r = await api('POST', `/api/v1/sync/${appId}/push`, { documents: docs });
+      if (r.ok) {
+        statPushed += r.data.written ?? docs.length;
+        docs.forEach(d => { if (d && d.id) localDocs[d.id] = d; });
+        setOut('push-out', `✓ written: ${r.data.written}  conflicts: ${JSON.stringify(r.data.conflicts)}\n\n` + JSON.stringify(r.data, null, 2), 'success');
+      } else {
+        setOut('push-out', `✗ ${r.status}: ${JSON.stringify(r.data)}`, 'error');
+      }
+    } catch (e) { setOut('push-out', '✗ ' + e.message, 'error'); }
+    updateStats();
+  }
+
+  function generateDoc() {
+    const id = 'doc-' + Math.random().toString(36).substring(2, 9);
+    document.getElementById('push-doc').value = JSON.stringify({
+      id,
+      title: 'Auto doc ' + id,
+      body: 'Generated at ' + new Date().toISOString(),
+      updatedAt: Date.now(),
+    }, null, 2);
+  }
+
+  function generateBatch() {
+    const docs = Array.from({ length: 10 }, () => {
+      const id = 'doc-' + Math.random().toString(36).substring(2, 9);
+      return { id, title: 'Batch ' + id, updatedAt: Date.now() };
+    });
+    document.getElementById('push-doc').value = JSON.stringify(docs, null, 2);
+  }
+
+  // ── Stream ─────────────────────────────────────────────────────────────────
+  function toggleStream() {
+    if (streamSource) stopStream(); else startStream();
+  }
+
+  function startStream() {
+    if (!appId || !token) { appendStream('✗ Need app + token', 'error'); return; }
+    const url = `${base()}/api/v1/sync/${appId}/stream?token=${encodeURIComponent(token)}`;
+    appendStream('Connecting to ' + url, 'info');
+    streamSource = new EventSource(url);
+
+    streamSource.addEventListener('change', (e) => {
+      statEvents++;
+      let data;
+      try { data = JSON.parse(e.data); } catch { data = e.data; }
+      if (data && data.documents) {
+        data.documents.forEach(d => { if (d && d.id) localDocs[d.id] = d; });
+        if (data.checkpoint) checkpoint = data.checkpoint;
+      }
+      appendStream('change: ' + JSON.stringify(data), 'data');
+      updateStats();
+    });
+
+    streamSource.onopen = () => {
+      document.getElementById('stream-dot').className = 'dot live';
+      document.getElementById('stream-label').textContent = 'Connected';
+      document.getElementById('stream-btn').textContent = '■ Stop Stream';
+      document.getElementById('stream-btn').className = 'btn-danger';
+      appendStream('Connected', 'success');
+    };
+
+    streamSource.onerror = (e) => {
+      appendStream('Stream error / closed', 'error');
+      stopStream();
+    };
+  }
+
+  function stopStream() {
+    if (streamSource) { streamSource.close(); streamSource = null; }
+    document.getElementById('stream-dot').className = 'dot';
+    document.getElementById('stream-label').textContent = 'Disconnected';
+    document.getElementById('stream-btn').textContent = '▶ Start Stream';
+    document.getElementById('stream-btn').className = 'btn-success';
+  }
+
+  function clearStreamLog() { document.getElementById('stream-out').innerHTML = ''; }
+  function clearLocalDocs() { localDocs = {}; updateStats(); }
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  updateStats();
+</script>
+</body>
+</html>
