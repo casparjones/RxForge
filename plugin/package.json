@@ -1,0 +1,32 @@
+{
+  "name": "rxdb-plugin-rxforge",
+  "version": "0.1.0",
+  "description": "RxDB replication plugin for RxForge – the self-hosted sync backend",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "rxdb": ">=15.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vite": "^5.0.0",
+    "vitest": "^1.6.0",
+    "rxdb": ">=15.0.0"
+  },
+  "keywords": ["rxdb", "replication", "sync", "rxforge", "offline-first"],
+  "license": "MIT"
+}

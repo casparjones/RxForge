@@ -1,0 +1,66 @@
+version: '3.9'
+
+# Local development stack.
+# Starts CouchDB and PostgreSQL as helper services alongside rxforge.
+# Usage: docker compose -f docker/docker-compose.dev.yml up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: rxforge
+      POSTGRES_USER: rxforge
+      POSTGRES_PASSWORD: rxforge
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rxforge"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  couchdb:
+    image: couchdb:3
+    environment:
+      COUCHDB_USER: admin
+      COUCHDB_PASSWORD: password
+    ports:
+      - "5984:5984"
+    volumes:
+      - couchdb_data:/opt/couchdb/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5984/"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rxforge:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgresql://rxforge:rxforge@postgres:5432/rxforge
+      COUCHDB_URL: http://couchdb:5984
+      COUCHDB_USER: admin
+      COUCHDB_PASSWORD: password
+      JWT_PRIVATE_KEY_PATH: /app/keys/private.pem
+      JWT_PUBLIC_KEY_PATH: /app/keys/public.pem
+      SERVER_PORT: 8080
+      FRONTEND_DIR: /app/dist
+      RUST_LOG: debug
+    volumes:
+      - ../keys:/app/keys
+    depends_on:
+      postgres:
+        condition: service_healthy
+      couchdb:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  couchdb_data:

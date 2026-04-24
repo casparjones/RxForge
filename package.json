@@ -1,0 +1,16 @@
+{
+  "name": "rxforge",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "plugin"
+  ],
+  "scripts": {
+    "dev": "npm -w frontend run dev",
+    "build": "npm -w frontend run build && npm -w plugin run build",
+    "test": "npm -w frontend run test && npm -w plugin run test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
+  }
+}

@@ -1,0 +1,35 @@
+# Rust
+/target
+/backend/target
+Cargo.lock
+
+# Node
+node_modules/
+frontend/node_modules/
+plugin/node_modules/
+frontend/.svelte-kit/
+frontend/build/
+plugin/dist/
+*.tsbuildinfo
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker/data/
+
+# Test results
+test-results/
+playwright-report/

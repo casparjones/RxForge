@@ -1,0 +1,32 @@
+version: '3.9'
+
+services:
+  rxforge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      COUCHDB_URL: ${COUCHDB_URL}
+      COUCHDB_USER: ${COUCHDB_USER}
+      COUCHDB_PASSWORD: ${COUCHDB_PASSWORD}
+      JWT_PRIVATE_KEY_PATH: ${JWT_PRIVATE_KEY_PATH:-/app/keys/private.pem}
+      JWT_PUBLIC_KEY_PATH: ${JWT_PUBLIC_KEY_PATH:-/app/keys/public.pem}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      FRONTEND_DIR: ${FRONTEND_DIR:-/app/dist}
+      RUST_LOG: ${RUST_LOG:-info}
+    volumes:
+      - ./keys:/app/keys:ro
+      - ./dist:/app/dist:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # CouchDB and PostgreSQL are expected to run externally.
+    # Configure DATABASE_URL and COUCHDB_URL via .env or environment.
