@@ -28,7 +28,7 @@ impl Config {
                 .unwrap_or_else(|_| "8080".to_string())
                 .parse()
                 .context("SERVER_PORT must be a valid port number")?,
-            frontend_dir: env::var("FRONTEND_DIR").unwrap_or_else(|_| "./dist".to_string()),
+            frontend_dir: env::var("FRONTEND_DIR").unwrap_or_else(|_| "./frontend/build".to_string()),
         })
     }
 }
