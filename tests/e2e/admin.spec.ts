@@ -148,6 +148,15 @@ test.describe('Admin Panel – Userverwaltung', () => {
     expect(captured.role).toBe('superadmin');
   });
 
+  test('admin stays on /admin/users after hard reload', async ({ page }) => {
+    await loginAsAdmin(page);
+    await gotoSPA(page, '/admin/users');
+    await expect(page).toHaveURL(/\/admin\/users/);
+    await page.reload();
+    await expect(page).toHaveURL(/\/admin\/users/);
+    await expect(page.getByRole('heading', { name: /user management/i })).toBeVisible({ timeout: 5000 });
+  });
+
   test('Admin-Route ist für Superadmins zugänglich', async ({ page }) => {
     await loginAsSuperadmin(page);
     await gotoSPA(page, '/admin/users');

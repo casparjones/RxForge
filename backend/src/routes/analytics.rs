@@ -137,14 +137,14 @@ pub async fn app_analytics(
             .await?;
 
     let (total_push_docs,): (i64,) = sqlx::query_as(
-        "SELECT COALESCE(SUM(docs_count), 0) FROM analytics_events WHERE app_id = $1 AND event_type = 'push'",
+        "SELECT COALESCE(SUM(docs_count), 0)::BIGINT FROM analytics_events WHERE app_id = $1 AND event_type = 'push'",
     )
     .bind(app_id)
     .fetch_one(&state.db)
     .await?;
 
     let (total_pull_docs,): (i64,) = sqlx::query_as(
-        "SELECT COALESCE(SUM(docs_count), 0) FROM analytics_events WHERE app_id = $1 AND event_type = 'pull'",
+        "SELECT COALESCE(SUM(docs_count), 0)::BIGINT FROM analytics_events WHERE app_id = $1 AND event_type = 'pull'",
     )
     .bind(app_id)
     .fetch_one(&state.db)

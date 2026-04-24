@@ -6,7 +6,18 @@
 	let { children } = $props();
 
 	onMount(() => {
-		const role = $auth.user?.role;
+		let role = $auth.user?.role;
+		if (!role && typeof localStorage !== 'undefined') {
+			const raw = localStorage.getItem('rxforge_user');
+			if (raw) {
+				try {
+					const stored = JSON.parse(raw);
+					role = stored?.role;
+				} catch {
+					/* ignore */
+				}
+			}
+		}
 		if (role !== 'admin' && role !== 'superadmin') {
 			goto('/dashboard');
 		}
