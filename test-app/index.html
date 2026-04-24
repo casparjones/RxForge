@@ -7,396 +7,490 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text-muted: #8b949e;
+      --text-bright: #f0f6fc;
+      --blue: #1f6feb;
+      --blue-light: #388bfd;
+      --green: #3fb950;
+      --green-dark: #196c2e;
+      --red: #f85149;
+      --red-dark: #4c1212;
+      --mono: ui-monospace, 'Cascadia Code', monospace;
+    }
+
     body {
-      font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+      font-family: var(--mono);
       font-size: 13px;
-      background: #0d1117;
-      color: #c9d1d9;
+      background: var(--bg);
+      color: var(--text);
       min-height: 100vh;
     }
 
+    /* ── Header ── */
     header {
-      background: #161b22;
-      border-bottom: 1px solid #30363d;
-      padding: 12px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      height: 48px;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
     }
-
-    header h1 { font-size: 15px; color: #f0f6fc; font-weight: 600; }
-
-    .badge {
-      font-size: 11px;
-      padding: 2px 8px;
-      border-radius: 12px;
-      background: #21262d;
-      border: 1px solid #30363d;
-      color: #8b949e;
+    header h1 { font-size: 14px; color: var(--text-bright); font-weight: 600; letter-spacing: 0.02em; }
+    .pill {
+      font-size: 11px; padding: 2px 10px; border-radius: 20px;
+      border: 1px solid var(--border); color: var(--text-muted); background: transparent;
     }
-    .badge.ok  { background: #0d4429; border-color: #196c2e; color: #3fb950; }
-    .badge.err { background: #4c1212; border-color: #8e0000; color: #f85149; }
+    .pill.connected { border-color: #196c2e; color: var(--green); background: #0d4429; }
+    .pill.error     { border-color: #8e0000; color: var(--red);   background: var(--red-dark); }
 
-    .layout {
-      display: grid;
-      grid-template-columns: 280px 1fr;
-      height: calc(100vh - 45px);
-    }
-
-    .sidebar {
+    /* ── Setup banner ── */
+    #setup-bar {
       background: #161b22;
-      border-right: 1px solid #30363d;
-      overflow-y: auto;
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+    .setup-field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 180px; }
+    .setup-field label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+    .setup-field input {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); font-family: var(--mono); font-size: 12px;
+      padding: 6px 10px; outline: none;
+    }
+    .setup-field input:focus { border-color: var(--blue); }
+    .setup-field .hint { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+    .setup-field .hint span { color: #79c0ff; cursor: pointer; }
+    .setup-field .hint span:hover { text-decoration: underline; }
+
+    .btn {
+      font-family: var(--mono); font-size: 12px; padding: 7px 16px;
+      border-radius: 6px; cursor: pointer; border: 1px solid; white-space: nowrap;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: var(--blue); border-color: var(--blue-light); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--blue-light); }
+    .btn-success { background: var(--green-dark); border-color: #2ea043; color: var(--green); }
+    .btn-success:hover:not(:disabled) { background: #2ea043; color: #fff; }
+    .btn-danger  { background: var(--red-dark); border-color: #8e0000; color: var(--red); }
+    .btn-danger:hover:not(:disabled) { background: #6d1a1a; }
+    .btn-ghost   { background: transparent; border-color: var(--border); color: var(--text-muted); }
+    .btn-ghost:hover:not(:disabled) { border-color: var(--text-muted); color: var(--text); }
+
+    /* ── Main layout ── */
+    .workspace {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      height: calc(100vh - 48px - 73px);
+    }
+
+    @media (max-width: 900px) {
+      .workspace { grid-template-columns: 1fr; height: auto; }
+    }
+
+    .pane {
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
+    .pane + .pane { border-left: 1px solid var(--border); }
 
-    .panel {
-      border-bottom: 1px solid #30363d;
-      padding: 14px;
-    }
-
-    .panel h2 {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #8b949e;
-      margin-bottom: 10px;
-    }
-
-    .main { display: flex; flex-direction: column; overflow: hidden; }
-
-    .tabs {
+    .pane-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
       display: flex;
-      background: #161b22;
-      border-bottom: 1px solid #30363d;
-      padding: 0 16px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-shrink: 0;
     }
+    .pane-header h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); }
 
-    .tab {
-      padding: 10px 14px;
-      cursor: pointer;
-      color: #8b949e;
-      border-bottom: 2px solid transparent;
-      font-size: 12px;
-      font-family: inherit;
-      background: none;
-      border-top: none; border-left: none; border-right: none;
+    .pane-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+    /* ── Document editor ── */
+    .doc-field { display: flex; flex-direction: column; gap: 4px; }
+    .doc-field label { font-size: 11px; color: var(--text-muted); }
+    .doc-field input, .doc-field textarea {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); font-family: var(--mono); font-size: 12px;
+      padding: 7px 10px; outline: none; width: 100%;
     }
-    .tab.active { color: #f0f6fc; border-bottom-color: #1f6feb; }
-    .tab:hover:not(.active) { color: #c9d1d9; }
+    .doc-field input:focus, .doc-field textarea:focus { border-color: var(--blue); }
+    textarea { resize: vertical; }
 
-    .tab-content { display: none; flex: 1; overflow-y: auto; padding: 16px; }
-    .tab-content.active { display: flex; flex-direction: column; gap: 12px; }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
 
-    input, textarea, select {
-      width: 100%;
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      color: #c9d1d9;
-      font-family: inherit;
-      font-size: 12px;
-      padding: 6px 10px;
-      outline: none;
-    }
-    input:focus, textarea:focus { border-color: #1f6feb; }
-
-    label { display: block; font-size: 11px; color: #8b949e; margin-bottom: 4px; }
-    .field { display: flex; flex-direction: column; gap: 4px; }
-
-    button {
-      font-family: inherit; font-size: 12px; padding: 6px 12px;
-      border-radius: 6px; cursor: pointer; border: 1px solid;
-    }
-    button:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    .btn-primary { background: #1f6feb; border-color: #388bfd; color: #fff; }
-    .btn-primary:hover:not(:disabled) { background: #388bfd; }
-    .btn-success { background: #196c2e; border-color: #2ea043; color: #3fb950; }
-    .btn-success:hover:not(:disabled) { background: #2ea043; color: #fff; }
-    .btn-danger  { background: #4c1212; border-color: #8e0000; color: #f85149; }
-    .btn-danger:hover:not(:disabled) { background: #6d1a1a; }
-    .btn-ghost   { background: transparent; border-color: #30363d; color: #8b949e; }
-    .btn-ghost:hover:not(:disabled) { border-color: #8b949e; color: #c9d1d9; }
-
-    .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
-
-    .output {
-      background: #0d1117;
-      border: 1px solid #30363d;
+    .result-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
       border-radius: 6px;
       padding: 10px;
+      font-size: 11px;
       white-space: pre-wrap;
       word-break: break-all;
-      font-size: 11px;
-      max-height: 300px;
-      overflow-y: auto;
-      color: #c9d1d9;
+      min-height: 48px;
+      color: var(--text);
+    }
+    .result-box.ok  { border-color: #196c2e; color: var(--green); }
+    .result-box.err { border-color: #8e0000; color: var(--red);   }
+
+    /* ── Document list ── */
+    .doc-list { display: flex; flex-direction: column; gap: 6px; }
+
+    .doc-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      animation: fadein 0.2s ease;
+    }
+    @keyframes fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; } }
+
+    .doc-card.new { border-color: var(--blue); }
+
+    .doc-meta { flex: 1; overflow: hidden; }
+    .doc-id   { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
+    .doc-title { font-size: 12px; color: var(--text-bright); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .doc-body  { font-size: 11px; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .doc-actions { display: flex; gap: 4px; flex-shrink: 0; }
+    .icon-btn {
+      background: none; border: 1px solid transparent; border-radius: 4px;
+      color: var(--text-muted); cursor: pointer; font-size: 12px; padding: 2px 6px;
+      font-family: var(--mono);
+    }
+    .icon-btn:hover { border-color: var(--border); color: var(--text); }
+    .icon-btn.danger:hover { border-color: #8e0000; color: var(--red); }
+
+    /* ── Stream ── */
+    .stream-log {
       flex: 1;
-      min-height: 60px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      overflow-y: auto;
+      font-size: 11px;
+      min-height: 100px;
     }
-    .output.stream-box { max-height: none; flex: 1; }
-
-    .log-line { padding: 2px 0; border-bottom: 1px solid #21262d; }
+    .log-line { padding: 2px 0; border-bottom: 1px solid #1c2128; color: var(--text); }
     .log-line:last-child { border-bottom: none; }
-    .log-line.info    { color: #79c0ff; }
-    .log-line.success { color: #3fb950; }
-    .log-line.error   { color: #f85149; }
-    .log-line.data    { color: #c9d1d9; }
+    .log-line.info { color: #79c0ff; }
+    .log-line.ok   { color: var(--green); }
+    .log-line.err  { color: var(--red); }
 
-    .stat-row {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 4px 0; border-bottom: 1px solid #21262d;
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); display: inline-block; }
+    .dot.live { background: var(--green); animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    .stats-row {
+      display: flex; gap: 16px; font-size: 11px; color: var(--text-muted);
     }
-    .stat-row:last-child { border-bottom: none; }
-    .stat-key { color: #8b949e; }
-    .stat-val { color: #f0f6fc; font-weight: 600; }
+    .stats-row b { color: var(--text-bright); }
 
-    .section-head {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 10px;
+    /* ── Locked overlay ── */
+    #locked-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100;
+      backdrop-filter: blur(4px);
     }
-    .section-head h2 { margin-bottom: 0; }
-
-    .app-item {
-      padding: 6px 8px; border-radius: 4px; cursor: pointer;
-      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    .locked-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px 36px;
+      max-width: 420px;
+      width: 90%;
+      text-align: center;
     }
-    .app-item:hover { background: #21262d; }
-    .app-item.selected { background: #1c2a3e; border: 1px solid #1f6feb; }
+    .locked-card h2 { font-size: 18px; color: var(--text-bright); margin-bottom: 8px; }
+    .locked-card p  { font-size: 12px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.6; }
 
-    .app-id { font-size: 10px; color: #8b949e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-    .chip { font-size: 10px; padding: 1px 6px; border-radius: 10px; white-space: nowrap; }
-    .chip-blue { background: #1c2a3e; border: 1px solid #1f6feb; color: #79c0ff; }
-
-    .stream-status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #8b949e; }
-    .dot { width: 8px; height: 8px; border-radius: 50%; background: #30363d; }
-    .dot.live { background: #3fb950; animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-
-    .checkpoint-display {
-      font-size: 10px; color: #8b949e; padding: 4px 8px;
-      background: #21262d; border-radius: 4px; word-break: break-all;
-    }
-
-    textarea { resize: vertical; }
+    #setup-bar { display: none; }
   </style>
 </head>
 <body>
 
+<!-- ── Header ── -->
 <header>
   <h1>⚡ RxForge Sync Tester</h1>
-  <span id="auth-badge" class="badge">Not authenticated</span>
-  <span id="app-badge" class="badge" style="display:none"></span>
-  <span style="margin-left:auto; font-size:11px; color:#8b949e;">
-    Backend:
-    <input id="backend-url" value="" placeholder="(same origin)"
-      style="width:190px; display:inline; padding:2px 6px; font-size:11px;" />
-  </span>
+  <span id="status-pill" class="pill">Not connected</span>
+  <span id="user-pill" style="font-size:11px; color:var(--text-muted); margin-left:auto;"></span>
+  <button class="btn btn-ghost" id="disconnect-btn" style="display:none; padding:4px 10px; font-size:11px;" onclick="disconnect()">Disconnect</button>
 </header>
 
-<div class="layout">
-
-  <!-- ── Sidebar ── -->
-  <div class="sidebar">
-
-    <div class="panel">
-      <h2>Authentication</h2>
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <div class="field">
-          <label>Email</label>
-          <input id="email" type="email" value="test@rxforge.dev" />
-        </div>
-        <div class="field">
-          <label>Password (min 8 chars)</label>
-          <input id="password" type="password" value="testpass123" />
-        </div>
-        <div class="btn-row">
-          <button class="btn-primary" onclick="doRegister()" style="flex:1">Register</button>
-          <button class="btn-ghost"   onclick="doLogin()"    style="flex:1">Login</button>
-        </div>
-        <div id="auth-out" class="output" style="min-height:50px; font-size:10px;"></div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="section-head">
-        <h2>Apps</h2>
-        <button class="btn-ghost" style="padding:2px 8px; font-size:11px;" onclick="loadApps()">↻</button>
-      </div>
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <div class="field">
-          <label>App Name</label>
-          <input id="app-name" value="test-app" />
-        </div>
-        <button class="btn-success" onclick="createApp()">+ Create App</button>
-        <div id="apps-list" style="display:flex; flex-direction:column; gap:4px; margin-top:4px;"></div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <h2>State</h2>
-      <div style="display:flex; flex-direction:column; gap:2px;">
-        <div class="stat-row"><span class="stat-key">Token</span><span class="stat-val" id="st-token">—</span></div>
-        <div class="stat-row"><span class="stat-key">App ID</span><span class="stat-val" id="st-app">—</span></div>
-        <div class="stat-row"><span class="stat-key">Checkpoint</span><span class="stat-val" id="st-ckpt">none</span></div>
-        <div class="stat-row"><span class="stat-key">Docs pulled</span><span class="stat-val" id="st-pulled">0</span></div>
-        <div class="stat-row"><span class="stat-key">Docs pushed</span><span class="stat-val" id="st-pushed">0</span></div>
-        <div class="stat-row"><span class="stat-key">Stream events</span><span class="stat-val" id="st-events">0</span></div>
-      </div>
-    </div>
-
+<!-- ── Setup bar (shown after connect) ── -->
+<div id="setup-bar">
+  <div class="setup-field" style="max-width:340px;">
+    <label>App ID (UUID)</label>
+    <input id="app-id-input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+    <div class="hint">Find in RxForge Admin → Apps → your app's UUID</div>
   </div>
-
-  <!-- ── Main ── -->
-  <div class="main">
-    <div class="tabs">
-      <button class="tab active" onclick="switchTab('pull',   this)">Pull</button>
-      <button class="tab"        onclick="switchTab('push',   this)">Push</button>
-      <button class="tab"        onclick="switchTab('stream', this)">Stream</button>
-      <button class="tab"        onclick="switchTab('docs',   this)">Local Docs</button>
-    </div>
-
-    <!-- PULL -->
-    <div id="tab-pull" class="tab-content active">
-      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-        <button class="btn-primary" onclick="doPull()">Pull changes</button>
-        <button class="btn-ghost"   onclick="doPullFull()">Pull (reset checkpoint)</button>
-        <div class="field" style="flex:1; min-width:120px;">
-          <label>Limit</label>
-          <input id="pull-limit" type="number" value="100" min="1" max="1000" />
-        </div>
-      </div>
-      <div>
-        <label style="margin-bottom:4px; display:block;">Current checkpoint</label>
-        <div class="checkpoint-display" id="ckpt-display">none</div>
-      </div>
-      <label>Response</label>
-      <div id="pull-out" class="output" style="flex:1;"></div>
-    </div>
-
-    <!-- PUSH -->
-    <div id="tab-push" class="tab-content">
-      <div class="field">
-        <label>Document JSON (single object or array)</label>
-        <textarea id="push-doc" rows="10">{
-  "id": "doc-001",
-  "title": "Hello RxForge",
-  "body": "Testing sync push",
-  "updatedAt": 1700000000000
-}</textarea>
-      </div>
-      <div class="btn-row">
-        <button class="btn-primary" onclick="doPush()">Push document(s)</button>
-        <button class="btn-ghost"   onclick="generateDoc()">Random doc</button>
-        <button class="btn-ghost"   onclick="generateBatch()">Batch (10)</button>
-      </div>
-      <label>Response</label>
-      <div id="push-out" class="output" style="flex:1;"></div>
-    </div>
-
-    <!-- STREAM -->
-    <div id="tab-stream" class="tab-content">
-      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-        <button class="btn-success" id="stream-btn" onclick="toggleStream()">▶ Start Stream</button>
-        <div class="stream-status">
-          <div class="dot" id="stream-dot"></div>
-          <span id="stream-label">Disconnected</span>
-        </div>
-        <button class="btn-ghost" onclick="clearStreamLog()" style="margin-left:auto;">Clear</button>
-      </div>
-      <div id="stream-out" class="output stream-box"></div>
-    </div>
-
-    <!-- LOCAL DOCS -->
-    <div id="tab-docs" class="tab-content">
-      <div style="display:flex; gap:8px; align-items:center;">
-        <span style="color:#8b949e; font-size:12px;">Documents in local store:</span>
-        <span id="doc-count" class="chip chip-blue">0</span>
-        <button class="btn-ghost" onclick="clearLocalDocs()" style="margin-left:auto;">Clear all</button>
-      </div>
-      <div id="docs-out" class="output" style="flex:1;"></div>
-    </div>
+  <div class="setup-field" style="max-width:320px;">
+    <label>Registered Redirect URI</label>
+    <input id="redirect-uri-input" readonly style="color:var(--text-muted);" />
+    <div class="hint">Add <span onclick="copyUri()">this URL</span> to your app's redirect URIs</div>
+  </div>
+  <button class="btn btn-primary" onclick="applyAppId()">Apply App ID</button>
+  <div class="stats-row" style="margin-left:auto; align-self:center;">
+    <span>Pulled: <b id="st-pulled">0</b></span>
+    <span>Pushed: <b id="st-pushed">0</b></span>
+    <span>Events: <b id="st-events">0</b></span>
   </div>
 </div>
 
+<!-- ── Locked overlay (shown before connect) ── -->
+<div id="locked-overlay">
+  <div class="locked-card">
+    <h2>RxForge Sync Tester</h2>
+    <p>
+      Connect with your RxForge account to start testing<br/>
+      the CouchDB sync protocol.
+    </p>
+    <div style="margin-bottom:20px;">
+      <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:6px; text-align:left;">App ID (UUID)</label>
+      <input id="app-id-overlay" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        style="background:var(--bg); border:1px solid var(--border); border-radius:6px;
+               color:var(--text); font-family:var(--mono); font-size:12px;
+               padding:8px 12px; outline:none; width:100%;" />
+    </div>
+    <button class="btn btn-primary" style="width:100%; justify-content:center; padding:10px;" onclick="connectViaPopup()">
+      Connect with RxForge →
+    </button>
+    <p style="margin-top:12px; font-size:11px; color:var(--text-muted);">
+      A login window will open. After signing in, this page connects automatically.
+    </p>
+    <div id="overlay-error" style="display:none; margin-top:12px; padding:8px 12px; background:var(--red-dark); border:1px solid #8e0000; border-radius:6px; font-size:11px; color:var(--red);"></div>
+  </div>
+</div>
+
+<!-- ── Main workspace ── -->
+<div class="workspace">
+
+  <!-- LEFT: Document editor + push -->
+  <div class="pane">
+    <div class="pane-header">
+      <h2>Create / Push Document</h2>
+      <div style="display:flex; gap:6px;">
+        <button class="btn btn-ghost" style="padding:3px 8px; font-size:11px;" onclick="fillRandom()">Random</button>
+        <button class="btn btn-ghost" style="padding:3px 8px; font-size:11px;" onclick="fillBatch()">Batch ×10</button>
+      </div>
+    </div>
+    <div class="pane-body">
+      <div class="doc-field">
+        <label>ID</label>
+        <input id="doc-id" placeholder="auto-generated if empty" />
+      </div>
+      <div class="doc-field">
+        <label>Title</label>
+        <input id="doc-title" placeholder="Document title" />
+      </div>
+      <div class="doc-field">
+        <label>Body</label>
+        <textarea id="doc-body" rows="3" placeholder="Document content…"></textarea>
+      </div>
+      <div class="doc-field">
+        <label>Extra JSON (optional, merged in)</label>
+        <textarea id="doc-extra" rows="3" placeholder='{"tags": ["test"], "priority": 1}'></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="pushDocs()">Push to CouchDB</button>
+        <button class="btn btn-ghost"   onclick="pullDocs()">Pull changes</button>
+        <button class="btn btn-ghost"   onclick="pullDocs(true)">Full pull ↺</button>
+      </div>
+      <div id="push-result" class="result-box" style="display:none;"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Document list + stream -->
+  <div class="pane">
+    <div class="pane-header">
+      <h2>Documents in CouchDB</h2>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-muted);">
+          <span class="dot" id="stream-dot"></span>
+          <span id="stream-label">Stream off</span>
+        </div>
+        <button class="btn btn-success" id="stream-btn" style="padding:3px 10px; font-size:11px;" onclick="toggleStream()">▶ Stream</button>
+        <button class="btn btn-ghost"   style="padding:3px 8px; font-size:11px;" onclick="clearDocs()">Clear</button>
+      </div>
+    </div>
+    <div class="pane-body">
+      <div id="doc-list" class="doc-list">
+        <div style="color:var(--text-muted); text-align:center; padding:32px 0;">
+          Push a document or pull to load from CouchDB
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border); padding-top:10px;">
+        <div class="pane-header" style="background:none; border:none; padding:0 0 6px 0;">
+          <h2>Live Stream Log</h2>
+          <button class="btn btn-ghost" style="padding:2px 8px; font-size:10px;" onclick="clearLog()">Clear</button>
+        </div>
+        <div id="stream-log" class="stream-log"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
 <script>
-  // ── State ────────────────────────────────────────────────────────────────────
-  let token      = null;
-  let appId      = null;
+  // ── State ─────────────────────────────────────────────────────────────────────
+  let token = null;
+  let userInfo = null;
+  let appId = null;
   let checkpoint = null;
-  let localDocs  = {};
-  let streamSource = null;
+  let localDocs = {};   // id → doc
+  let streamSrc = null;
+  let popupWin = null;
+  let pollTimer = null;
   let statPulled = 0, statPushed = 0, statEvents = 0;
 
-  function base() {
-    return (document.getElementById('backend-url').value || '').replace(/\/$/, '');
-  }
+  const BASE = '';  // same origin
 
-  // ── UI helpers ────────────────────────────────────────────────────────────────
-  function switchTab(name, btn) {
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-    document.getElementById('tab-' + name).classList.add('active');
-    btn.classList.add('active');
-  }
-
-  function escHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-
-  function setOut(id, text, cls = 'data') {
-    document.getElementById(id).innerHTML =
-      `<div class="log-line ${cls}">${escHtml(text)}</div>`;
-  }
-
-  function appendStream(text, cls = 'data') {
-    const el = document.getElementById('stream-out');
-    const ts = new Date().toISOString().substring(11, 23);
-    el.innerHTML += `<div class="log-line ${cls}">[${ts}] ${escHtml(text)}</div>`;
-    el.scrollTop = el.scrollHeight;
-  }
-
-  function updateStats() {
-    document.getElementById('st-token').textContent  = token ? token.substring(0, 18) + '…' : '—';
-    document.getElementById('st-app').textContent    = appId  ? appId.substring(0, 8)  + '…' : '—';
-    document.getElementById('st-ckpt').textContent   = checkpoint || 'none';
-    document.getElementById('st-pulled').textContent = statPulled;
-    document.getElementById('st-pushed').textContent = statPushed;
-    document.getElementById('st-events').textContent = statEvents;
-    document.getElementById('ckpt-display').textContent = checkpoint || 'none';
-    renderDocs();
-
-    const ab = document.getElementById('auth-badge');
-    if (token) { ab.textContent = 'Authenticated'; ab.className = 'badge ok'; }
-    else       { ab.textContent = 'Not authenticated'; ab.className = 'badge'; }
-
-    const appb = document.getElementById('app-badge');
-    if (appId) {
-      appb.textContent = 'App: ' + appId.substring(0, 8) + '…';
-      appb.style.display = '';
-      appb.className = 'badge ok';
-    } else {
-      appb.style.display = 'none';
+  // ── Boot: check if already logged in ─────────────────────────────────────────
+  window.addEventListener('load', () => {
+    const savedToken = localStorage.getItem('rxforge_token');
+    const savedUser  = tryParse(localStorage.getItem('rxforge_user'));
+    const savedApp   = localStorage.getItem('rxforge_tester_app_id');
+    if (savedToken) {
+      token    = savedToken;
+      userInfo = savedUser;
+      if (savedApp) appId = savedApp;
+      showConnected();
     }
+    document.getElementById('redirect-uri-input').value = location.origin + '/sync-tester';
+    document.getElementById('app-id-overlay').addEventListener('keydown', e => {
+      if (e.key === 'Enter') connectViaPopup();
+    });
+  });
+
+  function tryParse(s) { try { return JSON.parse(s); } catch { return null; } }
+
+  // ── Connect via popup ─────────────────────────────────────────────────────────
+  function connectViaPopup() {
+    const appIdVal = document.getElementById('app-id-overlay').value.trim();
+    if (appIdVal) appId = appIdVal;
+
+    const previousToken = localStorage.getItem('rxforge_token');
+    const w = 480, h = 640;
+    const left = Math.round(screen.width / 2 - w / 2);
+    const top  = Math.round(screen.height / 2 - h / 2);
+    popupWin = window.open(
+      '/login',
+      'rxforge_login',
+      `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`
+    );
+    if (!popupWin) {
+      showOverlayError('Popup blocked — please allow popups for this site.');
+      return;
+    }
+
+    // Poll localStorage for a new token
+    pollTimer = setInterval(() => {
+      const t = localStorage.getItem('rxforge_token');
+      if (t && t !== previousToken) {
+        clearInterval(pollTimer);
+        token    = t;
+        userInfo = tryParse(localStorage.getItem('rxforge_user'));
+        if (popupWin && !popupWin.closed) popupWin.close();
+        if (appIdVal) {
+          localStorage.setItem('rxforge_tester_app_id', appIdVal);
+        }
+        showConnected();
+        return;
+      }
+      if (popupWin && popupWin.closed) {
+        clearInterval(pollTimer);
+        // Maybe they were already logged in and the page just navigated
+        const t2 = localStorage.getItem('rxforge_token');
+        if (t2) { token = t2; userInfo = tryParse(localStorage.getItem('rxforge_user')); showConnected(); }
+        else showOverlayError('Login window closed without signing in.');
+      }
+    }, 400);
   }
 
-  function renderDocs() {
-    const keys = Object.keys(localDocs);
-    document.getElementById('doc-count').textContent = keys.length;
-    document.getElementById('docs-out').textContent  =
-      keys.length === 0 ? '(empty)' : JSON.stringify(Object.values(localDocs), null, 2);
+  function showOverlayError(msg) {
+    const el = document.getElementById('overlay-error');
+    el.textContent = msg;
+    el.style.display = 'block';
   }
 
-  // ── API helper ────────────────────────────────────────────────────────────────
+  function showConnected() {
+    document.getElementById('locked-overlay').style.display = 'none';
+    document.getElementById('setup-bar').style.display = 'flex';
+    document.getElementById('disconnect-btn').style.display = '';
+
+    const pill = document.getElementById('status-pill');
+    pill.textContent = 'Connected';
+    pill.className = 'pill connected';
+
+    const userPill = document.getElementById('user-pill');
+    userPill.textContent = userInfo ? userInfo.email + ' (' + userInfo.role + ')' : '';
+
+    if (appId) {
+      document.getElementById('app-id-input').value = appId;
+    }
+    document.getElementById('redirect-uri-input').value = location.origin + '/sync-tester';
+  }
+
+  function disconnect() {
+    token = null; userInfo = null; appId = null; checkpoint = null;
+    localDocs = {};
+    stopStream();
+    localStorage.removeItem('rxforge_token');
+    localStorage.removeItem('rxforge_user');
+    localStorage.removeItem('rxforge_tester_app_id');
+    document.getElementById('locked-overlay').style.display = 'flex';
+    document.getElementById('setup-bar').style.display = 'none';
+    document.getElementById('disconnect-btn').style.display = 'none';
+    const pill = document.getElementById('status-pill');
+    pill.textContent = 'Not connected';
+    pill.className = 'pill';
+    document.getElementById('user-pill').textContent = '';
+    renderDocs();
+  }
+
+  function applyAppId() {
+    const val = document.getElementById('app-id-input').value.trim();
+    if (!val) { alert('Please enter an App ID'); return; }
+    appId = val;
+    checkpoint = null;
+    localStorage.setItem('rxforge_tester_app_id', appId);
+    stopStream();
+    renderDocs();
+    pullDocs();
+  }
+
+  function copyUri() {
+    navigator.clipboard.writeText(location.origin + '/sync-tester');
+  }
+
+  // ── API ───────────────────────────────────────────────────────────────────────
   async function api(method, path, body) {
-    const headers = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = 'Bearer ' + token;
-    const res = await fetch(base() + path, {
+    const res = await fetch(BASE + path, {
       method,
-      headers,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+      },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
     const text = await res.text();
@@ -405,205 +499,200 @@
     return { ok: res.ok, status: res.status, data };
   }
 
-  // ── Auth ──────────────────────────────────────────────────────────────────────
-  // Register creates the user (no token), then auto-logs in.
-  async function doRegister() {
-    const email    = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    try {
-      const r = await api('POST', '/api/v1/auth/register', { email, password });
-      if (r.ok) {
-        setOut('auth-out', '✓ Registered: ' + JSON.stringify(r.data) + '\nLogging in…', 'info');
-        await doLogin();
-      } else {
-        setOut('auth-out', '✗ Register failed\n' + JSON.stringify(r.data, null, 2), 'error');
-      }
-    } catch (e) { setOut('auth-out', '✗ ' + e.message, 'error'); }
-  }
-
-  // Login response: { access_token, refresh_token, token_type, expires_in }
-  async function doLogin() {
-    const email    = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    try {
-      const r = await api('POST', '/api/v1/auth/login', { email, password });
-      if (r.ok) {
-        token = r.data.access_token;
-        setOut('auth-out',
-          '✓ Logged in\naccess_token: ' + token.substring(0, 40) + '…\n' +
-          'expires_in: ' + r.data.expires_in + 's', 'success');
-        updateStats();
-        await loadApps();
-      } else {
-        setOut('auth-out', '✗ Login failed\n' + JSON.stringify(r.data, null, 2), 'error');
-      }
-    } catch (e) { setOut('auth-out', '✗ ' + e.message, 'error'); }
-    updateStats();
-  }
-
-  // ── Apps ──────────────────────────────────────────────────────────────────────
-  async function createApp() {
-    const name = document.getElementById('app-name').value || 'test-app';
-    try {
-      const r = await api('POST', '/api/v1/apps', { name, redirect_uris: ['http://localhost:5173'] });
-      if (r.ok) {
-        appId = r.data.id;
-        checkpoint = null;
-        updateStats();
-        await loadApps();
-      } else {
-        alert('Create app failed: ' + JSON.stringify(r.data));
-      }
-    } catch (e) { alert('Error: ' + e.message); }
-  }
-
-  async function loadApps() {
-    if (!token) return;
-    try {
-      const r = await api('GET', '/api/v1/apps');
-      if (!r.ok) return;
-      const el = document.getElementById('apps-list');
-      el.innerHTML = '';
-      (r.data || []).forEach(app => {
-        const div = document.createElement('div');
-        div.className = 'app-item' + (app.id === appId ? ' selected' : '');
-        div.innerHTML = `
-          <div style="overflow:hidden;">
-            <div style="font-size:12px; color:#c9d1d9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escHtml(app.name)}</div>
-            <div class="app-id">${app.id}</div>
-          </div>
-          <span class="chip chip-blue" style="cursor:pointer; flex-shrink:0;"
-            onclick="selectApp('${app.id}')">Select</span>`;
-        el.appendChild(div);
-      });
-    } catch {}
-  }
-
-  function selectApp(id) {
-    appId = id;
-    checkpoint = null;
-    stopStream();
-    updateStats();
-    loadApps();
-  }
-
-  // ── Pull ──────────────────────────────────────────────────────────────────────
-  async function doPull(resetCkpt = false) {
-    if (!appId) { setOut('pull-out', '✗ No app selected — create or select one first', 'error'); return; }
-    if (resetCkpt) checkpoint = null;
-    const limit = document.getElementById('pull-limit').value || 100;
-    let url = `/api/v1/sync/${appId}/pull?limit=${limit}`;
-    if (checkpoint) url += `&checkpoint=${encodeURIComponent(checkpoint)}`;
-    try {
-      const r = await api('GET', url);
-      if (r.ok) {
-        const prev = checkpoint;
-        checkpoint = r.data.checkpoint ?? checkpoint;
-        const docs = r.data.documents ?? [];
-        docs.forEach(d => { if (d && d.id) localDocs[d.id] = d; });
-        statPulled += docs.length;
-        setOut('pull-out',
-          `✓ ${docs.length} doc(s)  |  checkpoint: ${prev || 'none'} → ${checkpoint}\n\n` +
-          JSON.stringify(r.data, null, 2), 'success');
-      } else {
-        setOut('pull-out', `✗ ${r.status}\n` + JSON.stringify(r.data, null, 2), 'error');
-      }
-    } catch (e) { setOut('pull-out', '✗ ' + e.message, 'error'); }
-    updateStats();
-  }
-
-  function doPullFull() { doPull(true); }
-
   // ── Push ──────────────────────────────────────────────────────────────────────
-  async function doPush() {
-    if (!appId) { setOut('push-out', '✗ No app selected', 'error'); return; }
-    let raw;
-    try { raw = JSON.parse(document.getElementById('push-doc').value); }
-    catch (e) { setOut('push-out', '✗ Invalid JSON: ' + e.message, 'error'); return; }
-    const docs = Array.isArray(raw) ? raw : [raw];
+  async function pushDocs(docs) {
+    if (!token)  return showResult('Not connected', 'err');
+    if (!appId)  return showResult('Enter an App ID first', 'err');
+
+    if (!docs) {
+      // Build from form
+      const id    = document.getElementById('doc-id').value.trim()    || genId();
+      const title = document.getElementById('doc-title').value.trim() || 'Untitled';
+      const body  = document.getElementById('doc-body').value.trim()  || '';
+      let extra = {};
+      try { extra = JSON.parse(document.getElementById('doc-extra').value || '{}'); } catch {}
+      docs = [{ id, title, body, updatedAt: Date.now(), ...extra }];
+    }
+
     try {
       const r = await api('POST', `/api/v1/sync/${appId}/push`, { documents: docs });
       if (r.ok) {
         statPushed += r.data.written ?? docs.length;
-        docs.forEach(d => { if (d && d.id) localDocs[d.id] = d; });
-        setOut('push-out',
-          `✓ written: ${r.data.written}  |  conflicts: ${JSON.stringify(r.data.conflicts)}\n\n` +
-          JSON.stringify(r.data, null, 2), 'success');
+        docs.forEach(d => { if (d.id) localDocs[d.id] = { ...d, _new: true }; });
+        showResult(`✓ written: ${r.data.written}  conflicts: ${JSON.stringify(r.data.conflicts ?? [])}`, 'ok');
+        renderDocs();
+        updateStats();
+        // clear id field so next push gets a fresh id
+        document.getElementById('doc-id').value = '';
       } else {
-        setOut('push-out', `✗ ${r.status}\n` + JSON.stringify(r.data, null, 2), 'error');
+        showResult(`✗ ${r.status}: ${JSON.stringify(r.data)}`, 'err');
       }
-    } catch (e) { setOut('push-out', '✗ ' + e.message, 'error'); }
-    updateStats();
+    } catch (e) { showResult('✗ ' + e.message, 'err'); }
   }
 
-  function generateDoc() {
-    const id = 'doc-' + Math.random().toString(36).substring(2, 9);
-    document.getElementById('push-doc').value = JSON.stringify({
-      id, title: 'Auto ' + id, body: 'Generated at ' + new Date().toISOString(),
-      updatedAt: Date.now(),
-    }, null, 2);
+  // ── Pull ──────────────────────────────────────────────────────────────────────
+  async function pullDocs(reset = false) {
+    if (!token) return showResult('Not connected', 'err');
+    if (!appId) return showResult('Enter an App ID first', 'err');
+    if (reset) checkpoint = null;
+
+    let url = `/api/v1/sync/${appId}/pull?limit=200`;
+    if (checkpoint) url += `&checkpoint=${encodeURIComponent(checkpoint)}`;
+    try {
+      const r = await api('GET', url);
+      if (r.ok) {
+        checkpoint = r.data.checkpoint ?? checkpoint;
+        const docs = r.data.documents ?? [];
+        docs.forEach(d => { if (d && d.id) localDocs[d.id] = d; });
+        statPulled += docs.length;
+        showResult(`✓ ${docs.length} doc(s) pulled  ·  checkpoint: ${checkpoint ?? 'none'}`, 'ok');
+        renderDocs();
+        updateStats();
+      } else {
+        showResult(`✗ ${r.status}: ${JSON.stringify(r.data)}`, 'err');
+      }
+    } catch (e) { showResult('✗ ' + e.message, 'err'); }
   }
 
-  function generateBatch() {
-    const docs = Array.from({ length: 10 }, () => {
-      const id = 'doc-' + Math.random().toString(36).substring(2, 9);
-      return { id, title: 'Batch ' + id, updatedAt: Date.now() };
+  // ── Render docs ───────────────────────────────────────────────────────────────
+  function renderDocs() {
+    const list = document.getElementById('doc-list');
+    const docs = Object.values(localDocs);
+    if (docs.length === 0) {
+      list.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:32px 0;">Push a document or pull to load from CouchDB</div>';
+      return;
+    }
+    list.innerHTML = '';
+    docs.slice().reverse().forEach(doc => {
+      const el = document.createElement('div');
+      el.className = 'doc-card' + (doc._new ? ' new' : '');
+      el.innerHTML = `
+        <div class="doc-meta">
+          <div class="doc-id">${esc(doc.id)}</div>
+          <div class="doc-title">${esc(doc.title || '(no title)')}</div>
+          ${doc.body ? `<div class="doc-body">${esc(doc.body)}</div>` : ''}
+        </div>
+        <div class="doc-actions">
+          <button class="icon-btn" onclick="editDoc('${esc(doc.id)}')" title="Edit">✎</button>
+          <button class="icon-btn danger" onclick="deleteDoc('${esc(doc.id)}')" title="Delete">✕</button>
+        </div>`;
+      list.appendChild(el);
     });
-    document.getElementById('push-doc').value = JSON.stringify(docs, null, 2);
   }
+
+  function editDoc(id) {
+    const doc = localDocs[id];
+    if (!doc) return;
+    document.getElementById('doc-id').value    = doc.id;
+    document.getElementById('doc-title').value = doc.title || '';
+    document.getElementById('doc-body').value  = doc.body  || '';
+    const extra = Object.fromEntries(
+      Object.entries(doc).filter(([k]) => !['id','title','body','updatedAt','_new'].includes(k))
+    );
+    document.getElementById('doc-extra').value = Object.keys(extra).length ? JSON.stringify(extra, null, 2) : '';
+  }
+
+  async function deleteDoc(id) {
+    if (!confirm(`Delete "${id}"?`)) return;
+    const doc = localDocs[id] || { id };
+    doc._deleted = true;
+    doc.updatedAt = Date.now();
+    await pushDocs([doc]);
+    delete localDocs[id];
+    renderDocs();
+  }
+
+  function clearDocs() { localDocs = {}; renderDocs(); }
+
+  // ── Random / batch ────────────────────────────────────────────────────────────
+  function fillRandom() {
+    document.getElementById('doc-id').value    = genId();
+    document.getElementById('doc-title').value = 'Doc ' + Math.random().toString(36).substring(2, 7);
+    document.getElementById('doc-body').value  = 'Auto-generated at ' + new Date().toISOString();
+    document.getElementById('doc-extra').value = '{"tags": ["test"]}';
+  }
+
+  async function fillBatch() {
+    const docs = Array.from({ length: 10 }, () => ({
+      id: genId(), title: 'Batch ' + genId().substring(0, 6),
+      body: 'Batch test', updatedAt: Date.now(), tags: ['batch'],
+    }));
+    await pushDocs(docs);
+  }
+
+  function genId() { return 'doc-' + Math.random().toString(36).substring(2, 11); }
 
   // ── Stream ────────────────────────────────────────────────────────────────────
   function toggleStream() {
-    if (streamSource) stopStream(); else startStream();
+    if (streamSrc) stopStream(); else startStream();
   }
 
   function startStream() {
-    if (!appId || !token) {
-      appendStream('✗ Need authenticated session + selected app', 'error');
-      return;
-    }
-    const url = `${base()}/api/v1/sync/${appId}/stream?token=${encodeURIComponent(token)}`;
-    appendStream('Connecting → ' + url, 'info');
-    streamSource = new EventSource(url);
+    if (!token || !appId) { logLine('✗ Need app + token', 'err'); return; }
+    const url = `${BASE}/api/v1/sync/${appId}/stream?token=${encodeURIComponent(token)}`;
+    logLine('Connecting…', 'info');
+    streamSrc = new EventSource(url);
 
-    streamSource.addEventListener('change', (e) => {
+    streamSrc.addEventListener('change', e => {
       statEvents++;
-      let data;
-      try { data = JSON.parse(e.data); } catch { data = e.data; }
-      if (data && data.documents) {
-        data.documents.forEach(d => { if (d && d.id) localDocs[d.id] = d; });
+      let data; try { data = JSON.parse(e.data); } catch { data = e.data; }
+      if (data?.documents) {
+        data.documents.forEach(d => { if (d?.id) localDocs[d.id] = d; });
         if (data.checkpoint) checkpoint = data.checkpoint;
+        renderDocs();
       }
-      appendStream('change → ' + JSON.stringify(data), 'data');
+      logLine('change → ' + JSON.stringify(data), 'data');
       updateStats();
     });
 
-    streamSource.onopen = () => {
+    streamSrc.onopen = () => {
       document.getElementById('stream-dot').className   = 'dot live';
-      document.getElementById('stream-label').textContent = 'Connected';
-      document.getElementById('stream-btn').textContent  = '■ Stop Stream';
-      document.getElementById('stream-btn').className    = 'btn-danger';
-      appendStream('Connected', 'success');
+      document.getElementById('stream-label').textContent = 'Live';
+      document.getElementById('stream-btn').textContent  = '■ Stop';
+      document.getElementById('stream-btn').className    = 'btn btn-danger';
+      logLine('Connected', 'ok');
     };
 
-    streamSource.onerror = () => {
-      appendStream('Stream error / server closed connection', 'error');
-      stopStream();
-    };
+    streamSrc.onerror = () => { logLine('Stream error / closed', 'err'); stopStream(); };
   }
 
   function stopStream() {
-    if (streamSource) { streamSource.close(); streamSource = null; }
+    if (streamSrc) { streamSrc.close(); streamSrc = null; }
     document.getElementById('stream-dot').className    = 'dot';
-    document.getElementById('stream-label').textContent = 'Disconnected';
-    document.getElementById('stream-btn').textContent   = '▶ Start Stream';
-    document.getElementById('stream-btn').className     = 'btn-success';
+    document.getElementById('stream-label').textContent = 'Stream off';
+    document.getElementById('stream-btn').textContent   = '▶ Stream';
+    document.getElementById('stream-btn').className     = 'btn btn-success';
   }
 
-  function clearStreamLog() { document.getElementById('stream-out').innerHTML = ''; }
-  function clearLocalDocs()  { localDocs = {}; updateStats(); }
+  // ── Helpers ───────────────────────────────────────────────────────────────────
+  function showResult(msg, cls) {
+    const el = document.getElementById('push-result');
+    el.style.display = '';
+    el.textContent   = msg;
+    el.className     = 'result-box ' + (cls || '');
+  }
 
-  updateStats();
+  function logLine(text, cls) {
+    const log = document.getElementById('stream-log');
+    const ts  = new Date().toISOString().substring(11, 23);
+    const div = document.createElement('div');
+    div.className   = 'log-line ' + (cls || '');
+    div.textContent = `[${ts}] ${text}`;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function clearLog() { document.getElementById('stream-log').innerHTML = ''; }
+
+  function updateStats() {
+    document.getElementById('st-pulled').textContent = statPulled;
+    document.getElementById('st-pushed').textContent = statPushed;
+    document.getElementById('st-events').textContent = statEvents;
+  }
+
+  function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
 </script>
 </body>
 </html>
