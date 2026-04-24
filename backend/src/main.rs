@@ -4,6 +4,7 @@ use sqlx::postgres::PgPoolOptions;
 use std::net::SocketAddr;
 use tower_http::{
     cors::{Any, CorsLayer},
+    services::{ServeDir, ServeFile},
     trace::TraceLayer,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -68,8 +69,14 @@ async fn main() -> anyhow::Result<()> {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    // Router
+    // Static frontend (SPA: unknown paths fall back to index.html)
+    let frontend_dir = config.frontend_dir.clone();
+    let spa_fallback = ServeFile::new(format!("{frontend_dir}/index.html"));
+    let static_files = ServeDir::new(&frontend_dir).fallback(spa_fallback);
+
+    // Router: API routes take priority; everything else is served as static files
     let app = routes::api_router()
+        .fallback_service(static_files)
         .layer(axum_middleware::from_fn_with_state(
             db.clone(),
             |state: axum::extract::State<sqlx::PgPool>,
