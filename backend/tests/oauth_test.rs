@@ -39,8 +39,7 @@ async fn client_credentials_issues_access_token() {
     let app = spawn_app().await;
     let server = TestServer::new(app.router.clone()).expect("test server");
 
-    let (_uid, user_token, _) =
-        register_and_login(&server, "cc@example.com", "correcthorse").await;
+    let (_uid, user_token, _) = register_and_login(&server, "cc@example.com", "correcthorse").await;
     let (client_id, client_secret, _app_id) =
         create_oauth_app(&server, &user_token, "https://example.com/cb").await;
 
@@ -93,8 +92,7 @@ async fn authorization_code_flow_full_roundtrip() {
     let app = spawn_app().await;
     let server = TestServer::new(app.router.clone()).expect("test server");
 
-    let (_uid, user_token, _) =
-        register_and_login(&server, "ac@example.com", "correcthorse").await;
+    let (_uid, user_token, _) = register_and_login(&server, "ac@example.com", "correcthorse").await;
     let redirect_uri = "https://example.com/cb";
     let (client_id, client_secret, _app_id) =
         create_oauth_app(&server, &user_token, redirect_uri).await;
@@ -186,11 +184,10 @@ async fn revoke_marks_token_revoked() {
         .await;
     rev.assert_status_ok();
 
-    let (revoked,): (bool,) =
-        sqlx::query_as("SELECT revoked FROM oauth_tokens WHERE token = $1")
-            .bind(&access)
-            .fetch_one(&app.pool)
-            .await
-            .expect("token row must exist");
+    let (revoked,): (bool,) = sqlx::query_as("SELECT revoked FROM oauth_tokens WHERE token = $1")
+        .bind(&access)
+        .fetch_one(&app.pool)
+        .await
+        .expect("token row must exist");
     assert!(revoked, "token must be marked revoked after /oauth/revoke");
 }

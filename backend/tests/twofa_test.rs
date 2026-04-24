@@ -47,7 +47,10 @@ async fn totp_setup_returns_secret_and_otpauth_url() {
     let secret = body["secret"].as_str().expect("secret");
     let qr_url = body["qr_url"].as_str().expect("qr_url");
     assert!(!secret.is_empty());
-    assert!(qr_url.starts_with("otpauth://totp/"), "expected otpauth URL, got {qr_url}");
+    assert!(
+        qr_url.starts_with("otpauth://totp/"),
+        "expected otpauth URL, got {qr_url}"
+    );
 }
 
 #[tokio::test]

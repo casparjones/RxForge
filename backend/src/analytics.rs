@@ -1,18 +1,10 @@
-use axum::{
-    extract::Request,
-    middleware::Next,
-    response::Response,
-};
+use axum::{extract::Request, middleware::Next, response::Response};
 use sqlx::PgPool;
 use std::time::Instant;
 use uuid::Uuid;
 
 /// Axum middleware that logs every request into the analytics_events table.
-pub async fn track_request(
-    pool: sqlx::Pool<sqlx::Postgres>,
-    req: Request,
-    next: Next,
-) -> Response {
+pub async fn track_request(pool: sqlx::Pool<sqlx::Postgres>, req: Request, next: Next) -> Response {
     let path = req.uri().path().to_string();
     let method = req.method().to_string();
     let start = Instant::now();

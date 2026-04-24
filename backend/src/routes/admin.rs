@@ -91,12 +91,11 @@ pub async fn update_user_role(
         ));
     }
 
-    let result =
-        sqlx::query("UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2")
-            .bind(&req.role)
-            .bind(target_id)
-            .execute(&state.db)
-            .await?;
+    let result = sqlx::query("UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2")
+        .bind(&req.role)
+        .bind(target_id)
+        .execute(&state.db)
+        .await?;
 
     if result.rows_affected() == 0 {
         return Err(AppError::NotFound("User not found".to_string()));

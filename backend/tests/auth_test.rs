@@ -145,7 +145,11 @@ async fn refresh_returns_new_jwt() {
 
     let body: serde_json::Value = resp.json();
     let new_access = body["access_token"].as_str().expect("access_token");
-    let claims = app.state.jwt.verify(new_access).expect("verify refreshed token");
+    let claims = app
+        .state
+        .jwt
+        .verify(new_access)
+        .expect("verify refreshed token");
     assert_eq!(claims.email, "dave@example.com");
     assert!(body["refresh_token"].is_string());
 }

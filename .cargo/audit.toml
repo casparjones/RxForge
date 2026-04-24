@@ -1,0 +1,5 @@
+[advisories]
+# rsa 0.9.x - Marvin Attack: potential key recovery through timing sidechannels
+# No fixed version available; this is a transitive dependency via sqlx-mysql.
+# We use RSA keys only for JWT signing (internal, not exposed to timing attacks).
+ignore = ["RUSTSEC-2023-0071"]

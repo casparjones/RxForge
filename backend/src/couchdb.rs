@@ -253,10 +253,7 @@ impl CouchDbClient {
         ];
 
         for (key, value) in entries {
-            let url = format!(
-                "{}/_node/_local/_config/{}",
-                self.base_url, key
-            );
+            let url = format!("{}/_node/_local/_config/{}", self.base_url, key);
             let response = self
                 .client
                 .put(&url)

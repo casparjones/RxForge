@@ -71,11 +71,8 @@ pub async fn spawn_app_with_couchdb_url(couchdb_url: &str) -> TestApp {
     let private = keys_dir.path().join("private.pem");
     let public = keys_dir.path().join("public.pem");
 
-    let jwt = JwtManager::load_or_generate(
-        private.to_str().unwrap(),
-        public.to_str().unwrap(),
-    )
-    .expect("jwt manager");
+    let jwt = JwtManager::load_or_generate(private.to_str().unwrap(), public.to_str().unwrap())
+        .expect("jwt manager");
 
     let config = Config {
         database_url: database_url.clone(),
@@ -88,7 +85,11 @@ pub async fn spawn_app_with_couchdb_url(couchdb_url: &str) -> TestApp {
         frontend_dir: "./dist".to_string(),
     };
 
-    let couchdb = CouchDbClient::new(&config.couchdb_url, &config.couchdb_user, &config.couchdb_password);
+    let couchdb = CouchDbClient::new(
+        &config.couchdb_url,
+        &config.couchdb_user,
+        &config.couchdb_password,
+    );
 
     let state = AppState {
         db: pool.clone(),

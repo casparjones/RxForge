@@ -52,8 +52,7 @@ async fn pull_forwards_to_couchdb_changes() {
     let app = spawn_app_with_couchdb_url(&mock.uri()).await;
     let server = TestServer::new(app.router.clone()).expect("test server");
 
-    let (_uid, token, _) =
-        register_and_login(&server, "puller@example.com", "correcthorse").await;
+    let (_uid, token, _) = register_and_login(&server, "puller@example.com", "correcthorse").await;
     let app_id = create_app(&server, &token).await;
 
     // CouchDB _changes mock – returns two docs and a last_seq checkpoint.
@@ -91,8 +90,7 @@ async fn push_forwards_bulk_docs_and_returns_conflicts() {
     let app = spawn_app_with_couchdb_url(&mock.uri()).await;
     let server = TestServer::new(app.router.clone()).expect("test server");
 
-    let (_uid, token, _) =
-        register_and_login(&server, "pusher@example.com", "correcthorse").await;
+    let (_uid, token, _) = register_and_login(&server, "pusher@example.com", "correcthorse").await;
     let app_id = create_app(&server, &token).await;
 
     // One OK, one conflict.

@@ -1,8 +1,6 @@
 use anyhow::{Context, Result};
 use chrono::Utc;
-use jsonwebtoken::{
-    decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation,
-};
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use std::{fs, path::Path};
 use uuid::Uuid;
 
@@ -30,10 +28,10 @@ impl JwtManager {
         let public_pem = fs::read(public_path)
             .with_context(|| format!("Failed to read public key: {public_key_path}"))?;
 
-        let encoding_key = EncodingKey::from_rsa_pem(&private_pem)
-            .context("Failed to load RSA private key")?;
-        let decoding_key = DecodingKey::from_rsa_pem(&public_pem)
-            .context("Failed to load RSA public key")?;
+        let encoding_key =
+            EncodingKey::from_rsa_pem(&private_pem).context("Failed to load RSA private key")?;
+        let decoding_key =
+            DecodingKey::from_rsa_pem(&public_pem).context("Failed to load RSA public key")?;
 
         Ok(Self {
             encoding_key,
@@ -95,12 +93,7 @@ impl JwtManager {
     }
 
     /// Issue a new access token (1 hour TTL).
-    pub fn issue_access_token(
-        &self,
-        user_id: &str,
-        email: &str,
-        role: &str,
-    ) -> Result<String> {
+    pub fn issue_access_token(&self, user_id: &str, email: &str, role: &str) -> Result<String> {
         let now = Utc::now().timestamp();
         let claims = Claims {
             sub: user_id.to_string(),
@@ -111,21 +104,12 @@ impl JwtManager {
             jti: Uuid::new_v4().to_string(),
         };
 
-        encode(
-            &Header::new(Algorithm::RS256),
-            &claims,
-            &self.encoding_key,
-        )
-        .context("Failed to encode JWT")
+        encode(&Header::new(Algorithm::RS256), &claims, &self.encoding_key)
+            .context("Failed to encode JWT")
     }
 
     /// Issue a refresh token (30 days TTL).
-    pub fn issue_refresh_token(
-        &self,
-        user_id: &str,
-        email: &str,
-        role: &str,
-    ) -> Result<String> {
+    pub fn issue_refresh_token(&self, user_id: &str, email: &str, role: &str) -> Result<String> {
         let now = Utc::now().timestamp();
         let claims = Claims {
             sub: user_id.to_string(),
@@ -136,12 +120,8 @@ impl JwtManager {
             jti: Uuid::new_v4().to_string(),
         };
 
-        encode(
-            &Header::new(Algorithm::RS256),
-            &claims,
-            &self.encoding_key,
-        )
-        .context("Failed to encode refresh JWT")
+        encode(&Header::new(Algorithm::RS256), &claims, &self.encoding_key)
+            .context("Failed to encode refresh JWT")
     }
 
     /// Verify and decode a token.
@@ -172,11 +152,9 @@ mod tests {
         let private = dir.path().join("private.pem");
         let public = dir.path().join("public.pem");
 
-        let manager = JwtManager::load_or_generate(
-            private.to_str().unwrap(),
-            public.to_str().unwrap(),
-        )
-        .unwrap();
+        let manager =
+            JwtManager::load_or_generate(private.to_str().unwrap(), public.to_str().unwrap())
+                .unwrap();
 
         let token = manager
             .issue_access_token("user-123", "test@example.com", "user")
@@ -194,11 +172,9 @@ mod tests {
         let private = dir.path().join("private.pem");
         let public = dir.path().join("public.pem");
 
-        let manager = JwtManager::load_or_generate(
-            private.to_str().unwrap(),
-            public.to_str().unwrap(),
-        )
-        .unwrap();
+        let manager =
+            JwtManager::load_or_generate(private.to_str().unwrap(), public.to_str().unwrap())
+                .unwrap();
 
         let result = manager.verify("invalid.token.here");
         assert!(result.is_err());

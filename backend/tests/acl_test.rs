@@ -70,7 +70,8 @@ async fn admin_can_grant_role_via_admin_endpoint() {
     let body: serde_json::Value = login.json();
     let admin_token = body["access_token"].as_str().unwrap().to_string();
 
-    let (target_uid, _, _) = register_and_login(&server, "target@example.com", "correcthorse").await;
+    let (target_uid, _, _) =
+        register_and_login(&server, "target@example.com", "correcthorse").await;
 
     let resp = server
         .patch(&format!("/api/v1/admin/users/{target_uid}/role"))
@@ -100,7 +101,8 @@ async fn non_admin_cannot_grant_role() {
 
     let (_actor_uid, actor_token, _) =
         register_and_login(&server, "actor@example.com", "correcthorse").await;
-    let (target_uid, _, _) = register_and_login(&server, "victim@example.com", "correcthorse").await;
+    let (target_uid, _, _) =
+        register_and_login(&server, "victim@example.com", "correcthorse").await;
 
     let resp = server
         .patch(&format!("/api/v1/admin/users/{target_uid}/role"))

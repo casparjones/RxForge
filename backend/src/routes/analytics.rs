@@ -40,10 +40,9 @@ pub async fn global_analytics(
 ) -> AppResult<Json<GlobalAnalyticsResponse>> {
     require_permission(&user, "analytics:global")?;
 
-    let (total_requests,): (i64,) =
-        sqlx::query_as("SELECT COUNT(*) FROM analytics_events")
-            .fetch_one(&state.db)
-            .await?;
+    let (total_requests,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM analytics_events")
+        .fetch_one(&state.db)
+        .await?;
 
     let (total_users,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
         .fetch_one(&state.db)
@@ -53,11 +52,10 @@ pub async fn global_analytics(
         .fetch_one(&state.db)
         .await?;
 
-    let (requests_today,): (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM analytics_events WHERE created_at >= CURRENT_DATE",
-    )
-    .fetch_one(&state.db)
-    .await?;
+    let (requests_today,): (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM analytics_events WHERE created_at >= CURRENT_DATE")
+            .fetch_one(&state.db)
+            .await?;
 
     #[derive(sqlx::FromRow)]
     struct EndpointRow {

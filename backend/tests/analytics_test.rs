@@ -20,12 +20,11 @@ async fn middleware_inserts_analytics_event_on_request() {
     // Poll until at least one row for /health appears (or give up).
     let mut rows: i64 = 0;
     for _ in 0..50 {
-        let (c,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM analytics_events WHERE path = '/health'",
-        )
-        .fetch_one(&app.pool)
-        .await
-        .unwrap();
+        let (c,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM analytics_events WHERE path = '/health'")
+                .fetch_one(&app.pool)
+                .await
+                .unwrap();
         rows = c;
         if rows > 0 {
             break;
@@ -44,8 +43,7 @@ async fn global_analytics_requires_admin_role() {
     let app = spawn_app().await;
     let server = TestServer::new(app.router.clone()).expect("test server");
 
-    let (_uid, user_token, _) =
-        register_and_login(&server, "u@example.com", "correcthorse").await;
+    let (_uid, user_token, _) = register_and_login(&server, "u@example.com", "correcthorse").await;
 
     let denied = server
         .get("/api/v1/analytics/global")
@@ -54,8 +52,7 @@ async fn global_analytics_requires_admin_role() {
     assert_eq!(denied.status_code(), axum::http::StatusCode::FORBIDDEN);
 
     // Promote and re-login.
-    let (admin_uid, _, _) =
-        register_and_login(&server, "ad@example.com", "correcthorse").await;
+    let (admin_uid, _, _) = register_and_login(&server, "ad@example.com", "correcthorse").await;
     promote_user(&app.pool, &admin_uid, "admin").await;
     let login = server
         .post("/api/v1/auth/login")
@@ -102,7 +99,10 @@ async fn app_analytics_owner_only_non_owner_forbidden() {
         }))
         .await;
     resp.assert_status_ok();
-    let app_id = resp.json::<serde_json::Value>()["id"].as_str().unwrap().to_string();
+    let app_id = resp.json::<serde_json::Value>()["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
 
     // Owner: OK.
     let mine = server
@@ -120,8 +120,7 @@ async fn app_analytics_owner_only_non_owner_forbidden() {
         .await;
     let status = forbidden.status_code();
     assert!(
-        status == axum::http::StatusCode::FORBIDDEN
-            || status == axum::http::StatusCode::NOT_FOUND,
+        status == axum::http::StatusCode::FORBIDDEN || status == axum::http::StatusCode::NOT_FOUND,
         "non-owner must be denied (403) or hidden (404), got {status}"
     );
 }

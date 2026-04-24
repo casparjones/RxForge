@@ -25,7 +25,10 @@ fn verify_client_secret(secret: &str, stored_hash: &str) -> bool {
     if stored_hash.starts_with("$2") {
         bcrypt::verify(secret, stored_hash).unwrap_or(false)
     } else {
-        constant_time_eq(hash_client_secret(secret).as_bytes(), stored_hash.as_bytes())
+        constant_time_eq(
+            hash_client_secret(secret).as_bytes(),
+            stored_hash.as_bytes(),
+        )
     }
 }
 
@@ -146,10 +149,7 @@ pub struct TokenResponse {
     pub scope: Option<String>,
 }
 
-pub async fn token(
-    State(state): State<AppState>,
-    Form(req): Form<TokenRequest>,
-) -> Response {
+pub async fn token(State(state): State<AppState>, Form(req): Form<TokenRequest>) -> Response {
     match req.grant_type.as_str() {
         "authorization_code" => handle_auth_code(state, req).await,
         "client_credentials" => handle_client_credentials(state, req).await,
@@ -284,16 +284,17 @@ async fn handle_auth_code(state: AppState, req: TokenRequest) -> Response {
         .execute(&state.db)
         .await;
 
-    let token_str = match state
-        .jwt
-        .issue_access_token(&client.id.to_string(), "oauth_client", "user")
-    {
-        Ok(t) => t,
-        Err(e) => {
-            tracing::error!("JWT error: {e}");
-            return (StatusCode::INTERNAL_SERVER_ERROR, "server_error").into_response();
-        }
-    };
+    let token_str =
+        match state
+            .jwt
+            .issue_access_token(&client.id.to_string(), "oauth_client", "user")
+        {
+            Ok(t) => t,
+            Err(e) => {
+                tracing::error!("JWT error: {e}");
+                return (StatusCode::INTERNAL_SERVER_ERROR, "server_error").into_response();
+            }
+        };
 
     let _ = sqlx::query(
         "INSERT INTO oauth_tokens (id, client_id, token, scope, expires_at, created_at)
@@ -379,13 +380,14 @@ async fn handle_client_credentials(state: AppState, req: TokenRequest) -> Respon
             .into_response();
     }
 
-    let token_str = match state
-        .jwt
-        .issue_access_token(&client.id.to_string(), "oauth_client", "user")
-    {
-        Ok(t) => t,
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "server_error").into_response(),
-    };
+    let token_str =
+        match state
+            .jwt
+            .issue_access_token(&client.id.to_string(), "oauth_client", "user")
+        {
+            Ok(t) => t,
+            Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "server_error").into_response(),
+        };
 
     let _ = sqlx::query(
         "INSERT INTO oauth_tokens (id, client_id, token, scope, expires_at, created_at)

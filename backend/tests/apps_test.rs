@@ -8,11 +8,7 @@ mod common;
 use axum_test::TestServer;
 use common::{docker_available, register_and_login, spawn_app};
 
-async fn create_app(
-    server: &TestServer,
-    token: &str,
-    name: &str,
-) -> serde_json::Value {
+async fn create_app(server: &TestServer, token: &str, name: &str) -> serde_json::Value {
     let resp = server
         .post("/api/v1/apps")
         .authorization_bearer(token)
@@ -50,7 +46,10 @@ async fn authenticated_user_creates_app() {
             .fetch_one(&app.pool)
             .await
             .expect("reservation row");
-    assert!(prefix.starts_with("app_"), "db_prefix should start with 'app_'");
+    assert!(
+        prefix.starts_with("app_"),
+        "db_prefix should start with 'app_'"
+    );
 }
 
 #[tokio::test]
@@ -162,8 +161,10 @@ async fn user_cannot_delete_other_users_app() {
     let app = spawn_app().await;
     let server = TestServer::new(app.router.clone()).expect("test server");
 
-    let (_a_uid, a_token, _) = register_and_login(&server, "victim@example.com", "correcthorse").await;
-    let (_b_uid, b_token, _) = register_and_login(&server, "thief@example.com", "correcthorse").await;
+    let (_a_uid, a_token, _) =
+        register_and_login(&server, "victim@example.com", "correcthorse").await;
+    let (_b_uid, b_token, _) =
+        register_and_login(&server, "thief@example.com", "correcthorse").await;
 
     let a_app = create_app(&server, &a_token, "Not yours").await;
     let a_id = a_app["id"].as_str().unwrap();

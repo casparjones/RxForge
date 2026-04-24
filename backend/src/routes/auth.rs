@@ -1,8 +1,4 @@
-use axum::{
-    extract::State,
-    routing::post,
-    Json, Router,
-};
+use axum::{extract::State, routing::post, Json, Router};
 use bcrypt::{hash, verify, DEFAULT_COST};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -54,11 +50,10 @@ pub async fn register(
         ));
     }
 
-    let existing: Option<(Uuid,)> =
-        sqlx::query_as("SELECT id FROM users WHERE email = $1")
-            .bind(&req.email)
-            .fetch_optional(&state.db)
-            .await?;
+    let existing: Option<(Uuid,)> = sqlx::query_as("SELECT id FROM users WHERE email = $1")
+        .bind(&req.email)
+        .fetch_optional(&state.db)
+        .await?;
 
     if existing.is_some() {
         return Err(AppError::Conflict("Email already registered".to_string()));
@@ -106,15 +101,14 @@ pub async fn login(
     State(state): State<AppState>,
     Json(req): Json<LoginRequest>,
 ) -> AppResult<Json<LoginResponse>> {
-    let row: Option<(Uuid, String, String, String)> = sqlx::query_as(
-        "SELECT id, email, password_hash, role FROM users WHERE email = $1",
-    )
-    .bind(&req.email)
-    .fetch_optional(&state.db)
-    .await?;
+    let row: Option<(Uuid, String, String, String)> =
+        sqlx::query_as("SELECT id, email, password_hash, role FROM users WHERE email = $1")
+            .bind(&req.email)
+            .fetch_optional(&state.db)
+            .await?;
 
-    let (user_id, email, password_hash, role) = row
-        .ok_or_else(|| AppError::Unauthorized("Invalid credentials".to_string()))?;
+    let (user_id, email, password_hash, role) =
+        row.ok_or_else(|| AppError::Unauthorized("Invalid credentials".to_string()))?;
 
     let valid = verify(&req.password, &password_hash)
         .map_err(|e| AppError::Internal(anyhow::anyhow!("bcrypt verify error: {e}")))?;
@@ -350,11 +344,10 @@ pub async fn totp_verify(
     let user_id = Uuid::parse_str(user.user_id())
         .map_err(|_| AppError::Internal(anyhow::anyhow!("Invalid user ID")))?;
 
-    let row: Option<(String,)> =
-        sqlx::query_as("SELECT secret FROM user_totp WHERE user_id = $1")
-            .bind(user_id)
-            .fetch_optional(&state.db)
-            .await?;
+    let row: Option<(String,)> = sqlx::query_as("SELECT secret FROM user_totp WHERE user_id = $1")
+        .bind(user_id)
+        .fetch_optional(&state.db)
+        .await?;
 
     let (secret_str,) = row.ok_or_else(|| AppError::BadRequest("TOTP not set up".to_string()))?;
 

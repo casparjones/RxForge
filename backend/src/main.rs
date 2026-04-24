@@ -8,7 +8,9 @@ use tower_http::{
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use rxforge_backend::{analytics, config::Config, couchdb::CouchDbClient, jwt::JwtManager, routes, state::AppState};
+use rxforge_backend::{
+    analytics, config::Config, couchdb::CouchDbClient, jwt::JwtManager, routes, state::AppState,
+};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -42,11 +44,16 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("Database migrations applied");
 
     // JWT key manager (generates keys if missing)
-    let jwt = JwtManager::load_or_generate(&config.jwt_private_key_path, &config.jwt_public_key_path)
-        .context("Failed to initialize JWT manager")?;
+    let jwt =
+        JwtManager::load_or_generate(&config.jwt_private_key_path, &config.jwt_public_key_path)
+            .context("Failed to initialize JWT manager")?;
 
     // CouchDB client
-    let couchdb = CouchDbClient::new(&config.couchdb_url, &config.couchdb_user, &config.couchdb_password);
+    let couchdb = CouchDbClient::new(
+        &config.couchdb_url,
+        &config.couchdb_user,
+        &config.couchdb_password,
+    );
 
     let state = AppState {
         db: db.clone(),
@@ -85,9 +92,7 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("Failed to bind TCP listener")?;
 
-    axum::serve(listener, app)
-        .await
-        .context("Server error")?;
+    axum::serve(listener, app).await.context("Server error")?;
 
     Ok(())
 }

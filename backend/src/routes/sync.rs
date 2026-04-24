@@ -124,9 +124,7 @@ pub async fn stream(
 ) -> Response {
     let owner_id = match Uuid::parse_str(user.user_id()) {
         Ok(id) => id,
-        Err(_) => {
-            return AppError::Internal(anyhow::anyhow!("Invalid user ID")).into_response()
-        }
+        Err(_) => return AppError::Internal(anyhow::anyhow!("Invalid user ID")).into_response(),
     };
 
     let db_name = format!("app_{}_user_{}", app_id, owner_id);

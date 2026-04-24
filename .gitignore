@@ -1,7 +1,6 @@
 # Rust
 /target
 /backend/target
-Cargo.lock
 
 # Node
 node_modules/

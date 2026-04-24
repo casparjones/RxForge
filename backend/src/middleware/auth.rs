@@ -9,12 +9,12 @@ use crate::{error::AppError, state::AppState};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: String,       // user id (UUID)
+    pub sub: String, // user id (UUID)
     pub email: String,
     pub role: String,
     pub exp: i64,
     pub iat: i64,
-    pub jti: String,       // JWT ID for revocation
+    pub jti: String, // JWT ID for revocation
 }
 
 /// Authenticated user extracted from JWT Bearer token.
@@ -62,9 +62,10 @@ impl FromRequestParts<AppState> for AuthUser {
                 .into_response()
         })?;
 
-        let claims = state.jwt.verify(token).map_err(|e| {
-            AppError::Unauthorized(format!("Invalid token: {e}")).into_response()
-        })?;
+        let claims = state
+            .jwt
+            .verify(token)
+            .map_err(|e| AppError::Unauthorized(format!("Invalid token: {e}")).into_response())?;
 
         Ok(AuthUser { claims })
     }
@@ -77,10 +78,7 @@ pub struct RequireRole(pub &'static str);
 impl RequireRole {
     pub fn check(&self, user: &AuthUser) -> Result<(), AppError> {
         if !user.has_role(self.0) {
-            return Err(AppError::Forbidden(format!(
-                "Role '{}' required",
-                self.0
-            )));
+            return Err(AppError::Forbidden(format!("Role '{}' required", self.0)));
         }
         Ok(())
     }
