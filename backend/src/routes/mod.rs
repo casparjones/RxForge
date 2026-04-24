@@ -9,6 +9,7 @@ pub mod apps;
 pub mod auth;
 pub mod oauth;
 pub mod sync;
+pub mod tester;
 
 pub fn api_router() -> Router<AppState> {
     Router::new()
@@ -18,6 +19,7 @@ pub fn api_router() -> Router<AppState> {
         .nest("/api/v1/admin", admin::router())
         .nest("/api/v1/analytics", analytics::router())
         .nest("/oauth", oauth::router())
+        .merge(tester::router())
         .route("/health", get(health_check))
 }
 

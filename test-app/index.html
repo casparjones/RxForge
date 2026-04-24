@@ -34,8 +34,7 @@
       border: 1px solid #30363d;
       color: #8b949e;
     }
-
-    .badge.ok { background: #0d4429; border-color: #196c2e; color: #3fb950; }
+    .badge.ok  { background: #0d4429; border-color: #196c2e; color: #3fb950; }
     .badge.err { background: #4c1212; border-color: #8e0000; color: #f85149; }
 
     .layout {
@@ -50,7 +49,6 @@
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 0;
     }
 
     .panel {
@@ -83,11 +81,8 @@
       font-size: 12px;
       font-family: inherit;
       background: none;
-      border-top: none;
-      border-left: none;
-      border-right: none;
+      border-top: none; border-left: none; border-right: none;
     }
-
     .tab.active { color: #f0f6fc; border-bottom-color: #1f6feb; }
     .tab:hover:not(.active) { color: #c9d1d9; }
 
@@ -105,51 +100,24 @@
       padding: 6px 10px;
       outline: none;
     }
-
-    input:focus, textarea:focus, select:focus { border-color: #1f6feb; }
+    input:focus, textarea:focus { border-color: #1f6feb; }
 
     label { display: block; font-size: 11px; color: #8b949e; margin-bottom: 4px; }
-
     .field { display: flex; flex-direction: column; gap: 4px; }
 
     button {
-      font-family: inherit;
-      font-size: 12px;
-      padding: 6px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      border: 1px solid;
-      transition: opacity 0.1s;
+      font-family: inherit; font-size: 12px; padding: 6px 12px;
+      border-radius: 6px; cursor: pointer; border: 1px solid;
     }
-
     button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    .btn-primary {
-      background: #1f6feb;
-      border-color: #388bfd;
-      color: #fff;
-    }
+    .btn-primary { background: #1f6feb; border-color: #388bfd; color: #fff; }
     .btn-primary:hover:not(:disabled) { background: #388bfd; }
-
-    .btn-success {
-      background: #196c2e;
-      border-color: #2ea043;
-      color: #3fb950;
-    }
+    .btn-success { background: #196c2e; border-color: #2ea043; color: #3fb950; }
     .btn-success:hover:not(:disabled) { background: #2ea043; color: #fff; }
-
-    .btn-danger {
-      background: #4c1212;
-      border-color: #8e0000;
-      color: #f85149;
-    }
+    .btn-danger  { background: #4c1212; border-color: #8e0000; color: #f85149; }
     .btn-danger:hover:not(:disabled) { background: #6d1a1a; }
-
-    .btn-ghost {
-      background: transparent;
-      border-color: #30363d;
-      color: #8b949e;
-    }
+    .btn-ghost   { background: transparent; border-color: #30363d; color: #8b949e; }
     .btn-ghost:hover:not(:disabled) { border-color: #8b949e; color: #c9d1d9; }
 
     .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -166,114 +134,54 @@
       overflow-y: auto;
       color: #c9d1d9;
       flex: 1;
-      min-height: 80px;
+      min-height: 60px;
     }
-
-    .output.stream-box {
-      max-height: none;
-      flex: 1;
-      font-size: 11px;
-    }
+    .output.stream-box { max-height: none; flex: 1; }
 
     .log-line { padding: 2px 0; border-bottom: 1px solid #21262d; }
     .log-line:last-child { border-bottom: none; }
-    .log-line.info { color: #79c0ff; }
+    .log-line.info    { color: #79c0ff; }
     .log-line.success { color: #3fb950; }
-    .log-line.error { color: #f85149; }
-    .log-line.data { color: #c9d1d9; }
+    .log-line.error   { color: #f85149; }
+    .log-line.data    { color: #c9d1d9; }
 
     .stat-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 4px 0;
-      border-bottom: 1px solid #21262d;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 4px 0; border-bottom: 1px solid #21262d;
     }
-
     .stat-row:last-child { border-bottom: none; }
     .stat-key { color: #8b949e; }
     .stat-val { color: #f0f6fc; font-weight: 600; }
 
-    .app-item {
-      padding: 6px 8px;
-      border-radius: 4px;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
+    .section-head {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px;
     }
+    .section-head h2 { margin-bottom: 0; }
 
+    .app-item {
+      padding: 6px 8px; border-radius: 4px; cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    }
     .app-item:hover { background: #21262d; }
     .app-item.selected { background: #1c2a3e; border: 1px solid #1f6feb; }
 
-    .app-id {
-      font-size: 10px;
-      color: #8b949e;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+    .app-id { font-size: 10px; color: #8b949e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-    .chip {
-      font-size: 10px;
-      padding: 1px 6px;
-      border-radius: 10px;
-      white-space: nowrap;
-    }
-
+    .chip { font-size: 10px; padding: 1px 6px; border-radius: 10px; white-space: nowrap; }
     .chip-blue { background: #1c2a3e; border: 1px solid #1f6feb; color: #79c0ff; }
 
-    .section-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-
-    .section-head h2 { margin-bottom: 0; }
-
-    textarea { resize: vertical; }
-
-    .stream-status {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 12px;
-      color: #8b949e;
-    }
-
-    .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #30363d;
-    }
+    .stream-status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #8b949e; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #30363d; }
     .dot.live { background: #3fb950; animation: pulse 1.5s infinite; }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
     .checkpoint-display {
-      font-size: 10px;
-      color: #8b949e;
-      padding: 4px 8px;
-      background: #21262d;
-      border-radius: 4px;
-      word-break: break-all;
+      font-size: 10px; color: #8b949e; padding: 4px 8px;
+      background: #21262d; border-radius: 4px; word-break: break-all;
     }
 
-    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-
-    .no-app-warning {
-      padding: 20px;
-      text-align: center;
-      color: #8b949e;
-      border: 1px dashed #30363d;
-      border-radius: 6px;
-    }
+    textarea { resize: vertical; }
   </style>
 </head>
 <body>
@@ -283,12 +191,15 @@
   <span id="auth-badge" class="badge">Not authenticated</span>
   <span id="app-badge" class="badge" style="display:none"></span>
   <span style="margin-left:auto; font-size:11px; color:#8b949e;">
-    Backend: <input id="backend-url" value="http://localhost:8080" style="width:180px; display:inline; padding:2px 6px; font-size:11px;" />
+    Backend:
+    <input id="backend-url" value="" placeholder="(same origin)"
+      style="width:190px; display:inline; padding:2px 6px; font-size:11px;" />
   </span>
 </header>
 
 <div class="layout">
-  <!-- Sidebar -->
+
+  <!-- ── Sidebar ── -->
   <div class="sidebar">
 
     <div class="panel">
@@ -296,15 +207,15 @@
       <div style="display:flex; flex-direction:column; gap:8px;">
         <div class="field">
           <label>Email</label>
-          <input id="email" type="email" value="test@rxforge.dev" placeholder="email" />
+          <input id="email" type="email" value="test@rxforge.dev" />
         </div>
         <div class="field">
-          <label>Password</label>
-          <input id="password" type="password" value="testpass123" placeholder="password" />
+          <label>Password (min 8 chars)</label>
+          <input id="password" type="password" value="testpass123" />
         </div>
         <div class="btn-row">
           <button class="btn-primary" onclick="doRegister()" style="flex:1">Register</button>
-          <button class="btn-ghost" onclick="doLogin()" style="flex:1">Login</button>
+          <button class="btn-ghost"   onclick="doLogin()"    style="flex:1">Login</button>
         </div>
         <div id="auth-out" class="output" style="min-height:50px; font-size:10px;"></div>
       </div>
@@ -327,7 +238,7 @@
 
     <div class="panel">
       <h2>State</h2>
-      <div id="state-display" style="display:flex; flex-direction:column; gap:4px;">
+      <div style="display:flex; flex-direction:column; gap:2px;">
         <div class="stat-row"><span class="stat-key">Token</span><span class="stat-val" id="st-token">—</span></div>
         <div class="stat-row"><span class="stat-key">App ID</span><span class="stat-val" id="st-app">—</span></div>
         <div class="stat-row"><span class="stat-key">Checkpoint</span><span class="stat-val" id="st-ckpt">none</span></div>
@@ -339,21 +250,21 @@
 
   </div>
 
-  <!-- Main -->
+  <!-- ── Main ── -->
   <div class="main">
     <div class="tabs">
-      <button class="tab active" onclick="switchTab('pull', this)">Pull</button>
-      <button class="tab" onclick="switchTab('push', this)">Push</button>
-      <button class="tab" onclick="switchTab('stream', this)">Stream</button>
-      <button class="tab" onclick="switchTab('docs', this)">Local Docs</button>
+      <button class="tab active" onclick="switchTab('pull',   this)">Pull</button>
+      <button class="tab"        onclick="switchTab('push',   this)">Push</button>
+      <button class="tab"        onclick="switchTab('stream', this)">Stream</button>
+      <button class="tab"        onclick="switchTab('docs',   this)">Local Docs</button>
     </div>
 
-    <!-- PULL TAB -->
+    <!-- PULL -->
     <div id="tab-pull" class="tab-content active">
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
         <button class="btn-primary" onclick="doPull()">Pull changes</button>
-        <button class="btn-ghost" onclick="doPullFull()">Pull (reset checkpoint)</button>
-        <div class="field" style="flex:1; min-width:160px;">
+        <button class="btn-ghost"   onclick="doPullFull()">Pull (reset checkpoint)</button>
+        <div class="field" style="flex:1; min-width:120px;">
           <label>Limit</label>
           <input id="pull-limit" type="number" value="100" min="1" max="1000" />
         </div>
@@ -366,10 +277,10 @@
       <div id="pull-out" class="output" style="flex:1;"></div>
     </div>
 
-    <!-- PUSH TAB -->
+    <!-- PUSH -->
     <div id="tab-push" class="tab-content">
       <div class="field">
-        <label>Document JSON (single doc or array)</label>
+        <label>Document JSON (single object or array)</label>
         <textarea id="push-doc" rows="10">{
   "id": "doc-001",
   "title": "Hello RxForge",
@@ -379,14 +290,14 @@
       </div>
       <div class="btn-row">
         <button class="btn-primary" onclick="doPush()">Push document(s)</button>
-        <button class="btn-ghost" onclick="generateDoc()">Generate random doc</button>
-        <button class="btn-ghost" onclick="generateBatch()">Generate batch (10)</button>
+        <button class="btn-ghost"   onclick="generateDoc()">Random doc</button>
+        <button class="btn-ghost"   onclick="generateBatch()">Batch (10)</button>
       </div>
       <label>Response</label>
       <div id="push-out" class="output" style="flex:1;"></div>
     </div>
 
-    <!-- STREAM TAB -->
+    <!-- STREAM -->
     <div id="tab-stream" class="tab-content">
       <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
         <button class="btn-success" id="stream-btn" onclick="toggleStream()">▶ Start Stream</button>
@@ -399,7 +310,7 @@
       <div id="stream-out" class="output stream-box"></div>
     </div>
 
-    <!-- LOCAL DOCS TAB -->
+    <!-- LOCAL DOCS -->
     <div id="tab-docs" class="tab-content">
       <div style="display:flex; gap:8px; align-items:center;">
         <span style="color:#8b949e; font-size:12px;">Documents in local store:</span>
@@ -412,17 +323,19 @@
 </div>
 
 <script>
-  // ── State ─────────────────────────────────────────────────────────────────
-  let token = null;
-  let appId = null;
+  // ── State ────────────────────────────────────────────────────────────────────
+  let token      = null;
+  let appId      = null;
   let checkpoint = null;
-  let localDocs = {};
+  let localDocs  = {};
   let streamSource = null;
   let statPulled = 0, statPushed = 0, statEvents = 0;
 
-  function base() { return document.getElementById('backend-url').value.replace(/\/$/, ''); }
+  function base() {
+    return (document.getElementById('backend-url').value || '').replace(/\/$/, '');
+  }
 
-  // ── UI helpers ─────────────────────────────────────────────────────────────
+  // ── UI helpers ────────────────────────────────────────────────────────────────
   function switchTab(name, btn) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
@@ -430,9 +343,13 @@
     btn.classList.add('active');
   }
 
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
   function setOut(id, text, cls = 'data') {
-    const el = document.getElementById(id);
-    el.innerHTML = `<div class="log-line ${cls}">${escHtml(text)}</div>`;
+    document.getElementById(id).innerHTML =
+      `<div class="log-line ${cls}">${escHtml(text)}</div>`;
   }
 
   function appendStream(text, cls = 'data') {
@@ -442,17 +359,13 @@
     el.scrollTop = el.scrollHeight;
   }
 
-  function escHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-
   function updateStats() {
-    document.getElementById('st-token').textContent = token ? token.substring(0, 16) + '…' : '—';
-    document.getElementById('st-app').textContent   = appId  ? appId.substring(0, 8) + '…' : '—';
-    document.getElementById('st-ckpt').textContent  = checkpoint || 'none';
-    document.getElementById('st-pulled').textContent  = statPulled;
-    document.getElementById('st-pushed').textContent  = statPushed;
-    document.getElementById('st-events').textContent  = statEvents;
+    document.getElementById('st-token').textContent  = token ? token.substring(0, 18) + '…' : '—';
+    document.getElementById('st-app').textContent    = appId  ? appId.substring(0, 8)  + '…' : '—';
+    document.getElementById('st-ckpt').textContent   = checkpoint || 'none';
+    document.getElementById('st-pulled').textContent = statPulled;
+    document.getElementById('st-pushed').textContent = statPushed;
+    document.getElementById('st-events').textContent = statEvents;
     document.getElementById('ckpt-display').textContent = checkpoint || 'none';
     renderDocs();
 
@@ -461,26 +374,30 @@
     else       { ab.textContent = 'Not authenticated'; ab.className = 'badge'; }
 
     const appb = document.getElementById('app-badge');
-    if (appId) { appb.textContent = 'App: ' + appId.substring(0,8) + '…'; appb.style.display = ''; appb.className = 'badge chip-blue'; }
-    else       { appb.style.display = 'none'; }
+    if (appId) {
+      appb.textContent = 'App: ' + appId.substring(0, 8) + '…';
+      appb.style.display = '';
+      appb.className = 'badge ok';
+    } else {
+      appb.style.display = 'none';
+    }
   }
 
   function renderDocs() {
     const keys = Object.keys(localDocs);
     document.getElementById('doc-count').textContent = keys.length;
-    document.getElementById('docs-out').textContent = keys.length === 0
-      ? '(empty)'
-      : JSON.stringify(Object.values(localDocs), null, 2);
+    document.getElementById('docs-out').textContent  =
+      keys.length === 0 ? '(empty)' : JSON.stringify(Object.values(localDocs), null, 2);
   }
 
-  // ── API helper ─────────────────────────────────────────────────────────────
+  // ── API helper ────────────────────────────────────────────────────────────────
   async function api(method, path, body) {
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = 'Bearer ' + token;
     const res = await fetch(base() + path, {
       method,
       headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
     });
     const text = await res.text();
     let data;
@@ -488,39 +405,43 @@
     return { ok: res.ok, status: res.status, data };
   }
 
-  // ── Auth ───────────────────────────────────────────────────────────────────
+  // ── Auth ──────────────────────────────────────────────────────────────────────
+  // Register creates the user (no token), then auto-logs in.
   async function doRegister() {
-    const email = document.getElementById('email').value;
+    const email    = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     try {
       const r = await api('POST', '/api/v1/auth/register', { email, password });
       if (r.ok) {
-        token = r.data.token;
-        setOut('auth-out', '✓ Registered\n' + JSON.stringify(r.data, null, 2), 'success');
+        setOut('auth-out', '✓ Registered: ' + JSON.stringify(r.data) + '\nLogging in…', 'info');
+        await doLogin();
       } else {
-        setOut('auth-out', '✗ ' + JSON.stringify(r.data), 'error');
+        setOut('auth-out', '✗ Register failed\n' + JSON.stringify(r.data, null, 2), 'error');
       }
     } catch (e) { setOut('auth-out', '✗ ' + e.message, 'error'); }
-    updateStats();
   }
 
+  // Login response: { access_token, refresh_token, token_type, expires_in }
   async function doLogin() {
-    const email = document.getElementById('email').value;
+    const email    = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     try {
       const r = await api('POST', '/api/v1/auth/login', { email, password });
       if (r.ok) {
-        token = r.data.token;
-        setOut('auth-out', '✓ Logged in\n' + JSON.stringify(r.data, null, 2), 'success');
+        token = r.data.access_token;
+        setOut('auth-out',
+          '✓ Logged in\naccess_token: ' + token.substring(0, 40) + '…\n' +
+          'expires_in: ' + r.data.expires_in + 's', 'success');
+        updateStats();
         await loadApps();
       } else {
-        setOut('auth-out', '✗ ' + JSON.stringify(r.data), 'error');
+        setOut('auth-out', '✗ Login failed\n' + JSON.stringify(r.data, null, 2), 'error');
       }
     } catch (e) { setOut('auth-out', '✗ ' + e.message, 'error'); }
     updateStats();
   }
 
-  // ── Apps ───────────────────────────────────────────────────────────────────
+  // ── Apps ──────────────────────────────────────────────────────────────────────
   async function createApp() {
     const name = document.getElementById('app-name').value || 'test-app';
     try {
@@ -541,19 +462,18 @@
     try {
       const r = await api('GET', '/api/v1/apps');
       if (!r.ok) return;
-      const apps = r.data;
       const el = document.getElementById('apps-list');
       el.innerHTML = '';
-      apps.forEach(app => {
+      (r.data || []).forEach(app => {
         const div = document.createElement('div');
         div.className = 'app-item' + (app.id === appId ? ' selected' : '');
         div.innerHTML = `
-          <div>
-            <div style="font-size:12px; color:#c9d1d9;">${escHtml(app.name)}</div>
+          <div style="overflow:hidden;">
+            <div style="font-size:12px; color:#c9d1d9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escHtml(app.name)}</div>
             <div class="app-id">${app.id}</div>
           </div>
-          <span class="chip chip-blue" style="cursor:pointer;" onclick="selectApp('${app.id}')">Select</span>
-        `;
+          <span class="chip chip-blue" style="cursor:pointer; flex-shrink:0;"
+            onclick="selectApp('${app.id}')">Select</span>`;
         el.appendChild(div);
       });
     } catch {}
@@ -567,9 +487,9 @@
     loadApps();
   }
 
-  // ── Pull ───────────────────────────────────────────────────────────────────
+  // ── Pull ──────────────────────────────────────────────────────────────────────
   async function doPull(resetCkpt = false) {
-    if (!appId) { setOut('pull-out', '✗ No app selected', 'error'); return; }
+    if (!appId) { setOut('pull-out', '✗ No app selected — create or select one first', 'error'); return; }
     if (resetCkpt) checkpoint = null;
     const limit = document.getElementById('pull-limit').value || 100;
     let url = `/api/v1/sync/${appId}/pull?limit=${limit}`;
@@ -583,10 +503,10 @@
         docs.forEach(d => { if (d && d.id) localDocs[d.id] = d; });
         statPulled += docs.length;
         setOut('pull-out',
-          `✓ ${docs.length} doc(s) pulled  |  checkpoint: ${prev || 'none'} → ${checkpoint}\n\n` +
+          `✓ ${docs.length} doc(s)  |  checkpoint: ${prev || 'none'} → ${checkpoint}\n\n` +
           JSON.stringify(r.data, null, 2), 'success');
       } else {
-        setOut('pull-out', `✗ ${r.status}: ${JSON.stringify(r.data)}`, 'error');
+        setOut('pull-out', `✗ ${r.status}\n` + JSON.stringify(r.data, null, 2), 'error');
       }
     } catch (e) { setOut('pull-out', '✗ ' + e.message, 'error'); }
     updateStats();
@@ -594,7 +514,7 @@
 
   function doPullFull() { doPull(true); }
 
-  // ── Push ───────────────────────────────────────────────────────────────────
+  // ── Push ──────────────────────────────────────────────────────────────────────
   async function doPush() {
     if (!appId) { setOut('push-out', '✗ No app selected', 'error'); return; }
     let raw;
@@ -606,9 +526,11 @@
       if (r.ok) {
         statPushed += r.data.written ?? docs.length;
         docs.forEach(d => { if (d && d.id) localDocs[d.id] = d; });
-        setOut('push-out', `✓ written: ${r.data.written}  conflicts: ${JSON.stringify(r.data.conflicts)}\n\n` + JSON.stringify(r.data, null, 2), 'success');
+        setOut('push-out',
+          `✓ written: ${r.data.written}  |  conflicts: ${JSON.stringify(r.data.conflicts)}\n\n` +
+          JSON.stringify(r.data, null, 2), 'success');
       } else {
-        setOut('push-out', `✗ ${r.status}: ${JSON.stringify(r.data)}`, 'error');
+        setOut('push-out', `✗ ${r.status}\n` + JSON.stringify(r.data, null, 2), 'error');
       }
     } catch (e) { setOut('push-out', '✗ ' + e.message, 'error'); }
     updateStats();
@@ -617,9 +539,7 @@
   function generateDoc() {
     const id = 'doc-' + Math.random().toString(36).substring(2, 9);
     document.getElementById('push-doc').value = JSON.stringify({
-      id,
-      title: 'Auto doc ' + id,
-      body: 'Generated at ' + new Date().toISOString(),
+      id, title: 'Auto ' + id, body: 'Generated at ' + new Date().toISOString(),
       updatedAt: Date.now(),
     }, null, 2);
   }
@@ -632,15 +552,18 @@
     document.getElementById('push-doc').value = JSON.stringify(docs, null, 2);
   }
 
-  // ── Stream ─────────────────────────────────────────────────────────────────
+  // ── Stream ────────────────────────────────────────────────────────────────────
   function toggleStream() {
     if (streamSource) stopStream(); else startStream();
   }
 
   function startStream() {
-    if (!appId || !token) { appendStream('✗ Need app + token', 'error'); return; }
+    if (!appId || !token) {
+      appendStream('✗ Need authenticated session + selected app', 'error');
+      return;
+    }
     const url = `${base()}/api/v1/sync/${appId}/stream?token=${encodeURIComponent(token)}`;
-    appendStream('Connecting to ' + url, 'info');
+    appendStream('Connecting → ' + url, 'info');
     streamSource = new EventSource(url);
 
     streamSource.addEventListener('change', (e) => {
@@ -651,36 +574,35 @@
         data.documents.forEach(d => { if (d && d.id) localDocs[d.id] = d; });
         if (data.checkpoint) checkpoint = data.checkpoint;
       }
-      appendStream('change: ' + JSON.stringify(data), 'data');
+      appendStream('change → ' + JSON.stringify(data), 'data');
       updateStats();
     });
 
     streamSource.onopen = () => {
-      document.getElementById('stream-dot').className = 'dot live';
+      document.getElementById('stream-dot').className   = 'dot live';
       document.getElementById('stream-label').textContent = 'Connected';
-      document.getElementById('stream-btn').textContent = '■ Stop Stream';
-      document.getElementById('stream-btn').className = 'btn-danger';
+      document.getElementById('stream-btn').textContent  = '■ Stop Stream';
+      document.getElementById('stream-btn').className    = 'btn-danger';
       appendStream('Connected', 'success');
     };
 
-    streamSource.onerror = (e) => {
-      appendStream('Stream error / closed', 'error');
+    streamSource.onerror = () => {
+      appendStream('Stream error / server closed connection', 'error');
       stopStream();
     };
   }
 
   function stopStream() {
     if (streamSource) { streamSource.close(); streamSource = null; }
-    document.getElementById('stream-dot').className = 'dot';
+    document.getElementById('stream-dot').className    = 'dot';
     document.getElementById('stream-label').textContent = 'Disconnected';
-    document.getElementById('stream-btn').textContent = '▶ Start Stream';
-    document.getElementById('stream-btn').className = 'btn-success';
+    document.getElementById('stream-btn').textContent   = '▶ Start Stream';
+    document.getElementById('stream-btn').className     = 'btn-success';
   }
 
   function clearStreamLog() { document.getElementById('stream-out').innerHTML = ''; }
-  function clearLocalDocs() { localDocs = {}; updateStats(); }
+  function clearLocalDocs()  { localDocs = {}; updateStats(); }
 
-  // ── Init ───────────────────────────────────────────────────────────────────
   updateStats();
 </script>
 </body>
