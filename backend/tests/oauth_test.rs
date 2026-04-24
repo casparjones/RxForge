@@ -100,7 +100,7 @@ async fn authorization_code_flow_full_roundtrip() {
     // Step 1: /oauth/authorize → 302 with ?code=...
     let auth_resp = server
         .get("/oauth/authorize")
-        .add_query_params(&[
+        .add_query_params([
             ("response_type", "code"),
             ("client_id", &client_id),
             ("redirect_uri", redirect_uri),

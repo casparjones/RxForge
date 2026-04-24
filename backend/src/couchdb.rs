@@ -49,7 +49,7 @@ impl CouchDbClient {
     pub async fn provision_db(&self, db_name: &str) -> Result<()> {
         let response = self
             .client
-            .put(&self.url(db_name))
+            .put(self.url(db_name))
             .basic_auth(&self.user, Some(&self.password))
             .send()
             .await
@@ -76,7 +76,7 @@ impl CouchDbClient {
     pub async fn delete_db(&self, db_name: &str) -> Result<()> {
         let response = self
             .client
-            .delete(&self.url(db_name))
+            .delete(self.url(db_name))
             .basic_auth(&self.user, Some(&self.password))
             .send()
             .await?;
@@ -290,7 +290,7 @@ impl CouchDbClient {
     pub async fn health_check(&self) -> Result<()> {
         let response = self
             .client
-            .get(&self.url(""))
+            .get(self.url(""))
             .basic_auth(&self.user, Some(&self.password))
             .send()
             .await
