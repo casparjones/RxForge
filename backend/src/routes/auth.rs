@@ -90,11 +90,21 @@ pub struct LoginRequest {
 }
 
 #[derive(Debug, Serialize)]
+pub struct UserInfo {
+    pub id: String,
+    pub email: String,
+    pub role: String,
+}
+
+#[derive(Debug, Serialize)]
 pub struct LoginResponse {
     pub access_token: String,
+    /// Alias for frontend compatibility
+    pub token: String,
     pub refresh_token: String,
     pub token_type: String,
     pub expires_in: i64,
+    pub user: UserInfo,
 }
 
 pub async fn login(
@@ -177,10 +187,16 @@ pub async fn login(
     .await?;
 
     Ok(Json(LoginResponse {
+        token: access_token.clone(),
         access_token,
         refresh_token,
         token_type: "Bearer".to_string(),
         expires_in: 3600,
+        user: UserInfo {
+            id: user_id_str,
+            email,
+            role,
+        },
     }))
 }
 
@@ -245,10 +261,16 @@ pub async fn refresh(
     .await?;
 
     Ok(Json(LoginResponse {
+        token: access_token.clone(),
         access_token,
         refresh_token: new_refresh,
         token_type: "Bearer".to_string(),
         expires_in: 3600,
+        user: UserInfo {
+            id: claims.sub.clone(),
+            email: claims.email.clone(),
+            role: claims.role.clone(),
+        },
     }))
 }
 
