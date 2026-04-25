@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,223 +8,216 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0d1117;
-      --surface: #161b22;
-      --border: #30363d;
-      --text: #c9d1d9;
-      --text-muted: #8b949e;
-      --text-bright: #f0f6fc;
-      --blue: #1f6feb;
-      --blue-light: #388bfd;
-      --green: #3fb950;
-      --green-dark: #196c2e;
-      --red: #f85149;
-      --red-dark: #4c1212;
-      --mono: ui-monospace, 'Cascadia Code', monospace;
+      --bg:         #0d1117;
+      --surface:    #161b22;
+      --surface2:   #1c2128;
+      --border:     #30363d;
+      --text:       #c9d1d9;
+      --muted:      #8b949e;
+      --bright:     #f0f6fc;
+      --blue:       #1f6feb;
+      --blue-hi:    #388bfd;
+      --green:      #3fb950;
+      --green-dk:   #196c2e;
+      --red:        #f85149;
+      --red-dk:     #4c1212;
+      --amber:      #d29922;
+      --amber-hi:   #e3b341;
+      --mono: ui-monospace, 'Cascadia Code', 'SF Mono', monospace;
     }
 
-    body {
-      font-family: var(--mono);
-      font-size: 13px;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-    }
+    body { font-family: var(--mono); font-size: 13px; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
     /* ── Header ── */
     header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 0 20px;
-      height: 48px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 0 20px; height: 48px; display: flex; align-items: center; gap: 16px; flex-shrink: 0;
     }
-    header h1 { font-size: 14px; color: var(--text-bright); font-weight: 600; letter-spacing: 0.02em; }
+    header h1 { font-size: 13px; color: var(--bright); font-weight: 600; letter-spacing: .03em; white-space: nowrap; }
+
+    .mode-tabs { display: flex; gap: 4px; }
+    .tab {
+      font-family: var(--mono); font-size: 11px; padding: 5px 14px; border-radius: 6px;
+      border: 1px solid transparent; cursor: pointer; color: var(--muted); background: transparent;
+      transition: color .15s, border-color .15s, background .15s;
+    }
+    .tab:hover { color: var(--text); border-color: var(--border); }
+    .tab.active { color: var(--bright); border-color: var(--border); background: var(--surface2); }
+    .tab.active.oauth  { border-color: #1f6feb55; color: var(--blue-hi); }
+    .tab.active.shared { border-color: #d2992255; color: var(--amber-hi); }
+    .tab.active.token  { border-color: #3fb95033; color: var(--green); }
+
+    /* ── Buttons ── */
+    .btn {
+      font-family: var(--mono); font-size: 12px; padding: 7px 16px; border-radius: 6px;
+      cursor: pointer; border: 1px solid; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-primary { background: var(--blue);     border-color: var(--blue-hi); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--blue-hi); }
+    .btn-amber   { background: #2d2200;          border-color: var(--amber);   color: var(--amber-hi); }
+    .btn-amber:hover:not(:disabled) { background: #3d3000; color: #fff; }
+    .btn-success { background: var(--green-dk);  border-color: #2ea043;        color: var(--green); }
+    .btn-success:hover:not(:disabled) { background: #2ea043; color: #fff; }
+    .btn-danger  { background: var(--red-dk);    border-color: #8e0000;        color: var(--red); }
+    .btn-ghost   { background: transparent;      border-color: var(--border);  color: var(--muted); }
+    .btn-ghost:hover:not(:disabled) { border-color: var(--muted); color: var(--text); }
+    .sm  { padding: 4px 12px; font-size: 11px; }
+    .sm2 { padding: 3px 8px;  font-size: 11px; }
+    .full { width: 100%; justify-content: center; padding: 10px; }
+
+    /* ── Pills ── */
     .pill {
       font-size: 11px; padding: 2px 10px; border-radius: 20px;
-      border: 1px solid var(--border); color: var(--text-muted); background: transparent;
+      border: 1px solid var(--border); color: var(--muted); background: transparent;
     }
-    .pill.connected { border-color: #196c2e; color: var(--green); background: #0d4429; }
-    .pill.error     { border-color: #8e0000; color: var(--red);   background: var(--red-dark); }
+    .pill.connected { border-color: var(--green-dk); color: var(--green); background: #0d4429; }
 
-    /* ── Setup banner ── */
-    #setup-bar {
-      background: #161b22;
-      border-bottom: 1px solid var(--border);
-      padding: 14px 20px;
-      display: flex;
-      gap: 12px;
-      align-items: flex-end;
-      flex-wrap: wrap;
+    /* ── Overlay ── */
+    .overlay {
+      position: absolute; inset: 0; background: rgba(0,0,0,.65); display: flex;
+      align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(4px);
     }
-    .setup-field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 180px; }
-    .setup-field label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
-    .setup-field input {
+    .locked-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 32px 36px; max-width: 420px; width: 90%; text-align: center;
+    }
+    .locked-card h2 { font-size: 17px; color: var(--bright); margin-bottom: 8px; }
+    .locked-card p  { font-size: 12px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
+    .mode-badge {
+      display: inline-block; font-size: 10px; padding: 2px 10px; border-radius: 20px;
+      margin-bottom: 16px; letter-spacing: .06em; text-transform: uppercase;
+    }
+    .mode-badge.oauth  { border: 1px solid #1f6feb55; color: var(--blue-hi); background: #0d1a2e; }
+    .mode-badge.amber  { border: 1px solid #d2992255; color: var(--amber-hi); background: #1a1200; }
+    .mode-badge.token  { border: 1px solid #3fb95033; color: var(--green); background: #0d1a10; }
+
+    .field-label { display: block; text-align: left; font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+    .mt { margin-top: 14px; }
+    .text-input {
+      width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); font-family: var(--mono); font-size: 12px; padding: 8px 12px; outline: none;
+    }
+    .text-input:focus { border-color: var(--blue-hi); }
+    .error-box {
+      margin-top: 12px; padding: 8px 12px; background: var(--red-dk); border: 1px solid #8e0000;
+      border-radius: 6px; font-size: 11px; color: var(--red); text-align: left;
+    }
+
+    /* ── Setup bar ── */
+    .setup-bar {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 12px 20px; display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; flex-shrink: 0;
+    }
+    .sfield { display: flex; flex-direction: column; gap: 4px; }
+    .sfield label { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .sfield input {
       background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
-      color: var(--text); font-family: var(--mono); font-size: 12px;
-      padding: 6px 10px; outline: none;
+      color: var(--text); font-family: var(--mono); font-size: 11px; padding: 5px 10px; outline: none; min-width: 260px;
     }
-    .setup-field input:focus { border-color: var(--blue); }
-    .setup-field .hint { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
-    .setup-field .hint span { color: #79c0ff; cursor: pointer; }
-    .setup-field .hint span:hover { text-decoration: underline; }
+    .sfield input:focus { border-color: var(--blue-hi); }
+    .hint { font-size: 10px; color: var(--muted); }
+    .hint span { color: #79c0ff; cursor: pointer; }
+    .hint span:hover { text-decoration: underline; }
+    .stats-row { display: flex; gap: 16px; font-size: 11px; color: var(--muted); align-items: center; }
+    .stats-row b { color: var(--bright); }
+    .user-pill { font-size: 11px; color: var(--muted); }
 
-    .btn {
-      font-family: var(--mono); font-size: 12px; padding: 7px 16px;
-      border-radius: 6px; cursor: pointer; border: 1px solid; white-space: nowrap;
-      display: inline-flex; align-items: center; gap: 6px;
-    }
-    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-primary { background: var(--blue); border-color: var(--blue-light); color: #fff; }
-    .btn-primary:hover:not(:disabled) { background: var(--blue-light); }
-    .btn-success { background: var(--green-dark); border-color: #2ea043; color: var(--green); }
-    .btn-success:hover:not(:disabled) { background: #2ea043; color: #fff; }
-    .btn-danger  { background: var(--red-dark); border-color: #8e0000; color: var(--red); }
-    .btn-danger:hover:not(:disabled) { background: #6d1a1a; }
-    .btn-ghost   { background: transparent; border-color: var(--border); color: var(--text-muted); }
-    .btn-ghost:hover:not(:disabled) { border-color: var(--text-muted); color: var(--text); }
+    /* ── Mode view ── */
+    .mode-view { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
 
-    /* ── Main layout ── */
-    .workspace {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0;
-      height: calc(100vh - 48px - 73px);
-    }
+    /* ── Workspace (2-pane) ── */
+    .workspace { display: grid; grid-template-columns: 1fr 1fr; flex: 1; overflow: hidden; }
+    @media (max-width: 860px) { .workspace { grid-template-columns: 1fr; } }
 
-    @media (max-width: 900px) {
-      .workspace { grid-template-columns: 1fr; height: auto; }
-    }
-
-    .pane {
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
+    .pane { display: flex; flex-direction: column; overflow: hidden; }
     .pane + .pane { border-left: 1px solid var(--border); }
-
     .pane-header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 10px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      flex-shrink: 0;
+      background: var(--surface); border-bottom: 1px solid var(--border); padding: 9px 16px;
+      display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-shrink: 0;
     }
-    .pane-header h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); }
+    .pane-header h2 { font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+    .pane-body { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 
-    .pane-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-
-    /* ── Document editor ── */
-    .doc-field { display: flex; flex-direction: column; gap: 4px; }
-    .doc-field label { font-size: 11px; color: var(--text-muted); }
+    /* ── Doc editor ── */
+    .doc-field { display: flex; flex-direction: column; gap: 3px; }
+    .doc-field label { font-size: 11px; color: var(--muted); }
     .doc-field input, .doc-field textarea {
       background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
-      color: var(--text); font-family: var(--mono); font-size: 12px;
-      padding: 7px 10px; outline: none; width: 100%;
+      color: var(--text); font-family: var(--mono); font-size: 12px; padding: 6px 10px; outline: none; width: 100%;
     }
-    .doc-field input:focus, .doc-field textarea:focus { border-color: var(--blue); }
+    .doc-field input:focus, .doc-field textarea:focus { border-color: var(--blue-hi); }
     textarea { resize: vertical; }
-
     .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
 
     .result-box {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 10px;
-      font-size: 11px;
-      white-space: pre-wrap;
-      word-break: break-all;
-      min-height: 48px;
-      color: var(--text);
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 9px 10px;
+      font-size: 11px; white-space: pre-wrap; word-break: break-all; color: var(--text);
     }
-    .result-box.ok  { border-color: #196c2e; color: var(--green); }
-    .result-box.err { border-color: #8e0000; color: var(--red);   }
+    .result-box.ok  { border-color: var(--green-dk); color: var(--green); }
+    .result-box.err { border-color: #8e0000; color: var(--red); }
 
-    /* ── Document list ── */
+    /* ── Doc list ── */
     .doc-list { display: flex; flex-direction: column; gap: 6px; }
-
     .doc-card {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 10px 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 10px;
-      animation: fadein 0.2s ease;
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      padding: 9px 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;
+      animation: fadein .15s ease;
     }
-    @keyframes fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; } }
-
+    @keyframes fadein { from { opacity:0; transform:translateY(-3px); } to { opacity:1; } }
     .doc-card.new { border-color: var(--blue); }
-
     .doc-meta { flex: 1; overflow: hidden; }
-    .doc-id   { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
-    .doc-title { font-size: 12px; color: var(--text-bright); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .doc-body  { font-size: 11px; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
+    .doc-id    { font-size: 10px; color: var(--muted); margin-bottom: 2px; }
+    .doc-title { font-size: 12px; color: var(--bright); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .doc-body  { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .doc-actions { display: flex; gap: 4px; flex-shrink: 0; }
     .icon-btn {
       background: none; border: 1px solid transparent; border-radius: 4px;
-      color: var(--text-muted); cursor: pointer; font-size: 12px; padding: 2px 6px;
-      font-family: var(--mono);
+      color: var(--muted); cursor: pointer; font-size: 12px; padding: 2px 6px; font-family: var(--mono);
     }
     .icon-btn:hover { border-color: var(--border); color: var(--text); }
     .icon-btn.danger:hover { border-color: #8e0000; color: var(--red); }
+    .empty-hint { color: var(--muted); text-align: center; padding: 24px 0; font-size: 12px; }
 
-    /* ── Stream ── */
+    /* ── Stream log ── */
     .stream-log {
-      flex: 1;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 10px;
-      overflow-y: auto;
-      font-size: 11px;
-      min-height: 100px;
+      flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      padding: 9px; overflow-y: auto; font-size: 11px; min-height: 80px; max-height: 180px;
     }
-    .log-line { padding: 2px 0; border-bottom: 1px solid #1c2128; color: var(--text); }
+    .log-line { padding: 2px 0; border-bottom: 1px solid #1c2128; }
     .log-line:last-child { border-bottom: none; }
     .log-line.info { color: #79c0ff; }
     .log-line.ok   { color: var(--green); }
     .log-line.err  { color: var(--red); }
 
-    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); display: inline-block; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); display: inline-block; flex-shrink: 0; }
     .dot.live { background: var(--green); animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-    .stats-row {
-      display: flex; gap: 16px; font-size: 11px; color: var(--text-muted);
-    }
-    .stats-row b { color: var(--text-bright); }
+    /* ── Dual session (Geteilt mode) ── */
+    .dual-sessions { display: grid; grid-template-columns: 1fr 1fr; flex: 1; overflow: hidden; }
+    .session-col { display: flex; flex-direction: column; overflow: hidden; }
+    .session-col + .session-col { border-left: 1px solid var(--border); }
 
-    /* ── Locked overlay ── */
-    #locked-overlay {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.7);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 100;
-      backdrop-filter: blur(4px);
+    .session-hdr {
+      background: var(--surface2); border-bottom: 1px solid var(--border); padding: 8px 16px;
+      display: flex; align-items: center; gap: 10px; flex-shrink: 0; flex-wrap: wrap;
     }
-    .locked-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 32px 36px;
-      max-width: 420px;
-      width: 90%;
-      text-align: center;
-    }
-    .locked-card h2 { font-size: 18px; color: var(--text-bright); margin-bottom: 8px; }
-    .locked-card p  { font-size: 12px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.6; }
+    .session-label { font-size: 11px; font-weight: 600; color: var(--bright); }
 
-    #setup-bar { display: none; }
+    .sub-pane { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+
+    /* ── Shared creds bar ── */
+    .creds-bar {
+      background: var(--surface2); border-bottom: 1px solid var(--border); padding: 10px 20px;
+      display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; flex-shrink: 0;
+    }
+    .creds-bar .sfield input { min-width: 200px; }
+    .creds-note {
+      font-size: 10px; color: var(--muted); border: 1px solid #d2992230;
+      background: #1a120022; border-radius: 6px; padding: 6px 10px; align-self: center;
+    }
+    .creds-note b { color: var(--amber-hi); }
   </style>
 </head>
 <body>
@@ -232,467 +225,709 @@
 <!-- ── Header ── -->
 <header>
   <h1>⚡ RxForge Sync Tester</h1>
-  <span id="status-pill" class="pill">Not connected</span>
-  <span id="user-pill" style="font-size:11px; color:var(--text-muted); margin-left:auto;"></span>
-  <button class="btn btn-ghost" id="disconnect-btn" style="display:none; padding:4px 10px; font-size:11px;" onclick="disconnect()">Disconnect</button>
+  <div class="mode-tabs">
+    <button class="tab oauth"  data-mode="isolated" onclick="switchMode('isolated')">OAuth · Isoliert</button>
+    <button class="tab shared" data-mode="shared"   onclick="switchMode('shared')">OAuth · Geteilt</button>
+    <button class="tab token"  data-mode="token"    onclick="switchMode('token')">Public Token</button>
+  </div>
 </header>
 
-<!-- ── Setup bar (shown after connect) ── -->
-<div id="setup-bar">
-  <div class="setup-field" style="max-width:340px;">
-    <label>App ID (UUID)</label>
-    <input id="app-id-input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
-    <div class="hint">Find in RxForge Admin → Apps → your app's UUID</div>
+<!-- ══════════════════════════════════════════════════════
+     MODE 1 — OAuth Isoliert
+     Jeder Nutzer hat eine eigene Datenbank.
+═══════════════════════════════════════════════════════ -->
+<div id="mode-isolated" class="mode-view">
+
+  <!-- Overlay -->
+  <div id="iso-overlay" class="overlay">
+    <div class="locked-card">
+      <div class="mode-badge oauth">OAuth 2.0 · Isoliert</div>
+      <h2>Anmelden</h2>
+      <p>Jeder Nutzer hat eine <b style="color:var(--blue-hi);">eigene, isolierte</b> Datenbank.<br>
+         Gib die Client ID deiner App ein — kein Secret nötig.</p>
+      <label class="field-label">Client ID</label>
+      <input id="iso-cid" class="text-input" placeholder="rxf_…" />
+      <button class="btn btn-primary full" onclick="oauthConnect('isolated')" style="margin-top:20px;">Mit RxForge anmelden →</button>
+      <div id="iso-error" class="error-box" style="display:none;"></div>
+    </div>
   </div>
-  <div class="setup-field" style="max-width:320px;">
-    <label>Registered Redirect URI</label>
-    <input id="redirect-uri-input" readonly style="color:var(--text-muted);" />
-    <div class="hint">Add <span onclick="copyUri()">this URL</span> to your app's redirect URIs</div>
+
+  <!-- Setup bar -->
+  <div id="iso-bar" class="setup-bar" style="display:none;">
+    <div class="sfield">
+      <label>App ID</label>
+      <input id="iso-app-id" readonly />
+    </div>
+    <div class="sfield">
+      <label>Redirect URI</label>
+      <input id="iso-redirect" readonly />
+      <div class="hint">In App eintragen: <span onclick="copy('iso-redirect')">kopieren</span></div>
+    </div>
+    <div class="stats-row" style="margin-left:auto;">
+      <span>Pulled <b id="iso-st-p">0</b></span>
+      <span>Pushed <b id="iso-st-w">0</b></span>
+      <span>Events <b id="iso-st-e">0</b></span>
+    </div>
+    <span id="iso-user-pill" class="user-pill"></span>
+    <button class="btn btn-ghost sm" onclick="disconnect('isolated')">Trennen</button>
   </div>
-  <button class="btn btn-primary" onclick="applyAppId()">Apply App ID</button>
-  <div class="stats-row" style="margin-left:auto; align-self:center;">
-    <span>Pulled: <b id="st-pulled">0</b></span>
-    <span>Pushed: <b id="st-pushed">0</b></span>
-    <span>Events: <b id="st-events">0</b></span>
+
+  <!-- Workspace -->
+  <div class="workspace" id="iso-workspace" style="display:none;">
+    <!-- LEFT: Push -->
+    <div class="pane">
+      <div class="pane-header">
+        <h2>Dokument pushen</h2>
+        <div style="display:flex;gap:5px;">
+          <button class="btn btn-ghost sm2" onclick="fillRandom('iso')">Zufall</button>
+          <button class="btn btn-ghost sm2" onclick="fillBatch('isolated')">Batch ×10</button>
+        </div>
+      </div>
+      <div class="pane-body">
+        <div class="doc-field"><label>ID</label><input id="iso-doc-id" placeholder="auto-generated" /></div>
+        <div class="doc-field"><label>Title</label><input id="iso-doc-title" placeholder="Dokumenttitel" /></div>
+        <div class="doc-field"><label>Body</label><textarea id="iso-doc-body" rows="3" placeholder="Inhalt…"></textarea></div>
+        <div class="doc-field"><label>Extra JSON (wird eingemischt)</label><textarea id="iso-doc-extra" rows="2" placeholder='{"tags":["test"]}'></textarea></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="pushDoc('isolated')">Push</button>
+          <button class="btn btn-ghost"   onclick="pullDocs('isolated')">Pull</button>
+          <button class="btn btn-ghost"   onclick="pullDocs('isolated',true)">Full Pull ↺</button>
+        </div>
+        <div id="iso-push-result" class="result-box" style="display:none;"></div>
+      </div>
+    </div>
+    <!-- RIGHT: Docs + Stream -->
+    <div class="pane">
+      <div class="pane-header">
+        <h2>Dokumente</h2>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="dot" id="iso-dot"></span>
+          <span id="iso-stream-lbl" style="font-size:11px;color:var(--muted);">Stream aus</span>
+          <button class="btn btn-success sm2" id="iso-stream-btn" onclick="toggleStream('isolated')">▶</button>
+          <button class="btn btn-ghost sm2"   onclick="clearDocs('isolated')">Clear</button>
+        </div>
+      </div>
+      <div class="pane-body">
+        <div id="iso-doc-list" class="doc-list"><div class="empty-hint">Push oder Pull um Dokumente zu laden</div></div>
+        <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);">Stream Log</span>
+            <button class="btn btn-ghost sm2" onclick="clearLog('iso-log')">Clear</button>
+          </div>
+          <div id="iso-log" class="stream-log"></div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- ── Locked overlay (shown before connect) ── -->
-<div id="locked-overlay">
-  <div class="locked-card">
-    <h2>RxForge Sync Tester</h2>
-    <p>
-      Connect with your RxForge account to start testing<br/>
-      the CouchDB sync protocol.
-    </p>
-    <div style="margin-bottom:20px;">
-      <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:6px; text-align:left;">App ID (UUID)</label>
-      <input id="app-id-overlay" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-        style="background:var(--bg); border:1px solid var(--border); border-radius:6px;
-               color:var(--text); font-family:var(--mono); font-size:12px;
-               padding:8px 12px; outline:none; width:100%;" />
+<!-- ══════════════════════════════════════════════════════
+     MODE 2 — OAuth Geteilt
+     Zwei Nutzer, eine gemeinsame Datenbank.
+═══════════════════════════════════════════════════════ -->
+<div id="mode-shared" class="mode-view" style="display:none;">
+
+  <!-- Shared app credentials -->
+  <div class="creds-bar">
+    <div class="sfield">
+      <label>Client ID (App)</label>
+      <input id="sh-cid" placeholder="rxf_…" />
     </div>
-    <button class="btn btn-primary" style="width:100%; justify-content:center; padding:10px;" onclick="connectViaPopup()">
-      Connect with RxForge →
-    </button>
-    <p style="margin-top:12px; font-size:11px; color:var(--text-muted);">
-      A login window will open. After signing in, this page connects automatically.
-    </p>
-    <div id="overlay-error" style="display:none; margin-top:12px; padding:8px 12px; background:var(--red-dark); border:1px solid #8e0000; border-radius:6px; font-size:11px; color:var(--red);"></div>
+    <div class="creds-note">
+      Beide Nutzer melden sich mit derselben App an.<br>
+      <b>db_scope = shared</b> → alle schreiben in dieselbe DB.
+    </div>
+  </div>
+
+  <!-- Dual sessions -->
+  <div class="dual-sessions">
+
+    <!-- Session A -->
+    <div class="session-col">
+      <div class="session-hdr">
+        <span class="session-label">👤 Nutzer A</span>
+        <span id="sha-pill" class="pill">Nicht verbunden</span>
+        <span id="sha-user" style="font-size:11px;color:var(--muted);"></span>
+        <button class="btn btn-primary sm" id="sha-login" onclick="oauthConnect('shared-a')">Anmelden</button>
+        <button class="btn btn-ghost  sm" id="sha-disc"  onclick="disconnect('shared-a')" style="display:none;">Trennen</button>
+      </div>
+      <div class="sub-pane">
+        <div class="doc-field"><label>ID</label><input id="sha-doc-id" placeholder="auto" /></div>
+        <div class="doc-field"><label>Title</label><input id="sha-doc-title" placeholder="Titel…" /></div>
+        <div class="doc-field"><label>Body</label><textarea id="sha-doc-body" rows="2" placeholder="Inhalt…"></textarea></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="pushDoc('shared-a')">Push</button>
+          <button class="btn btn-ghost"   onclick="pullDocs('shared-a')">Pull</button>
+          <button class="btn btn-ghost"   onclick="pullDocs('shared-a',true)">Full ↺</button>
+          <button class="btn btn-ghost sm2" onclick="fillRandom('sha')">Zufall</button>
+        </div>
+        <div id="sha-push-result" class="result-box" style="display:none;"></div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-top:4px;">Dokumente</div>
+        <div id="sha-doc-list" class="doc-list"><div class="empty-hint">Keine Dokumente</div></div>
+      </div>
+    </div>
+
+    <!-- Session B -->
+    <div class="session-col">
+      <div class="session-hdr">
+        <span class="session-label">👤 Nutzer B</span>
+        <span id="shb-pill" class="pill">Nicht verbunden</span>
+        <span id="shb-user" style="font-size:11px;color:var(--muted);"></span>
+        <button class="btn btn-primary sm" id="shb-login" onclick="oauthConnect('shared-b')">Anmelden</button>
+        <button class="btn btn-ghost  sm" id="shb-disc"  onclick="disconnect('shared-b')" style="display:none;">Trennen</button>
+      </div>
+      <div class="sub-pane">
+        <div class="doc-field"><label>ID</label><input id="shb-doc-id" placeholder="auto" /></div>
+        <div class="doc-field"><label>Title</label><input id="shb-doc-title" placeholder="Titel…" /></div>
+        <div class="doc-field"><label>Body</label><textarea id="shb-doc-body" rows="2" placeholder="Inhalt…"></textarea></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="pushDoc('shared-b')">Push</button>
+          <button class="btn btn-ghost"   onclick="pullDocs('shared-b')">Pull</button>
+          <button class="btn btn-ghost"   onclick="pullDocs('shared-b',true)">Full ↺</button>
+          <button class="btn btn-ghost sm2" onclick="fillRandom('shb')">Zufall</button>
+        </div>
+        <div id="shb-push-result" class="result-box" style="display:none;"></div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-top:4px;">Dokumente</div>
+        <div id="shb-doc-list" class="doc-list"><div class="empty-hint">Keine Dokumente</div></div>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- ── Main workspace ── -->
-<div class="workspace">
+<!-- ══════════════════════════════════════════════════════
+     MODE 3 — Public Token
+     Kein Login. Alle teilen eine Datenbank.
+═══════════════════════════════════════════════════════ -->
+<div id="mode-token" class="mode-view" style="display:none;">
 
-  <!-- LEFT: Document editor + push -->
-  <div class="pane">
-    <div class="pane-header">
-      <h2>Create / Push Document</h2>
-      <div style="display:flex; gap:6px;">
-        <button class="btn btn-ghost" style="padding:3px 8px; font-size:11px;" onclick="fillRandom()">Random</button>
-        <button class="btn btn-ghost" style="padding:3px 8px; font-size:11px;" onclick="fillBatch()">Batch ×10</button>
-      </div>
-    </div>
-    <div class="pane-body">
-      <div class="doc-field">
-        <label>ID</label>
-        <input id="doc-id" placeholder="auto-generated if empty" />
-      </div>
-      <div class="doc-field">
-        <label>Title</label>
-        <input id="doc-title" placeholder="Document title" />
-      </div>
-      <div class="doc-field">
-        <label>Body</label>
-        <textarea id="doc-body" rows="3" placeholder="Document content…"></textarea>
-      </div>
-      <div class="doc-field">
-        <label>Extra JSON (optional, merged in)</label>
-        <textarea id="doc-extra" rows="3" placeholder='{"tags": ["test"], "priority": 1}'></textarea>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-primary" onclick="pushDocs()">Push to CouchDB</button>
-        <button class="btn btn-ghost"   onclick="pullDocs()">Pull changes</button>
-        <button class="btn btn-ghost"   onclick="pullDocs(true)">Full pull ↺</button>
-      </div>
-      <div id="push-result" class="result-box" style="display:none;"></div>
+  <!-- Overlay -->
+  <div id="tok-overlay" class="overlay">
+    <div class="locked-card">
+      <div class="mode-badge token">Public Token</div>
+      <h2>Token eingeben</h2>
+      <p>Kein Nutzer-Login nötig. Alle Anfragen teilen<br>
+         <b style="color:var(--green);">dieselbe Datenbank</b> dieser App.</p>
+      <label class="field-label">Public Token (rxft_…)</label>
+      <input id="tok-input" class="text-input" placeholder="rxft_…" />
+      <p style="font-size:10px;color:var(--muted);text-align:left;margin-top:6px;">
+        Push tauscht den Token automatisch gegen ein kurzlebiges JWT.
+      </p>
+      <button class="btn btn-amber full" onclick="tokenConnect()" style="margin-top:16px;">Verbinden →</button>
+      <div id="tok-error" class="error-box" style="display:none;"></div>
     </div>
   </div>
 
-  <!-- RIGHT: Document list + stream -->
-  <div class="pane">
-    <div class="pane-header">
-      <h2>Documents in CouchDB</h2>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <div style="display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-muted);">
-          <span class="dot" id="stream-dot"></span>
-          <span id="stream-label">Stream off</span>
+  <!-- Setup bar -->
+  <div id="tok-bar" class="setup-bar" style="display:none;">
+    <div class="sfield">
+      <label>App ID</label>
+      <input id="tok-app-id" readonly />
+    </div>
+    <div class="stats-row" style="margin-left:auto;">
+      <span>Pulled <b id="tok-st-p">0</b></span>
+      <span>Pushed <b id="tok-st-w">0</b></span>
+      <span>Events <b id="tok-st-e">0</b></span>
+    </div>
+    <button class="btn btn-ghost sm" onclick="disconnect('token')">Trennen</button>
+  </div>
+
+  <!-- Workspace -->
+  <div class="workspace" id="tok-workspace" style="display:none;">
+    <!-- LEFT: Push -->
+    <div class="pane">
+      <div class="pane-header">
+        <h2>Dokument pushen</h2>
+        <div style="display:flex;gap:5px;">
+          <button class="btn btn-ghost sm2" onclick="fillRandom('tok')">Zufall</button>
+          <button class="btn btn-ghost sm2" onclick="fillBatch('token')">Batch ×10</button>
         </div>
-        <button class="btn btn-success" id="stream-btn" style="padding:3px 10px; font-size:11px;" onclick="toggleStream()">▶ Stream</button>
-        <button class="btn btn-ghost"   style="padding:3px 8px; font-size:11px;" onclick="clearDocs()">Clear</button>
+      </div>
+      <div class="pane-body">
+        <div class="doc-field"><label>ID</label><input id="tok-doc-id" placeholder="auto-generated" /></div>
+        <div class="doc-field"><label>Title</label><input id="tok-doc-title" placeholder="Dokumenttitel" /></div>
+        <div class="doc-field"><label>Body</label><textarea id="tok-doc-body" rows="3" placeholder="Inhalt…"></textarea></div>
+        <div class="doc-field"><label>Extra JSON</label><textarea id="tok-doc-extra" rows="2" placeholder='{"score":42}'></textarea></div>
+        <div class="btn-row">
+          <button class="btn btn-amber"  onclick="pushDoc('token')">Push</button>
+          <button class="btn btn-ghost"  onclick="pullDocs('token')">Pull</button>
+          <button class="btn btn-ghost"  onclick="pullDocs('token',true)">Full Pull ↺</button>
+        </div>
+        <p style="font-size:10px;color:var(--muted);">Push tauscht den Token automatisch gegen ein JWT (15 min).</p>
+        <div id="tok-push-result" class="result-box" style="display:none;"></div>
       </div>
     </div>
-    <div class="pane-body">
-      <div id="doc-list" class="doc-list">
-        <div style="color:var(--text-muted); text-align:center; padding:32px 0;">
-          Push a document or pull to load from CouchDB
+    <!-- RIGHT: Docs + Stream -->
+    <div class="pane">
+      <div class="pane-header">
+        <h2>Dokumente</h2>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="dot" id="tok-dot"></span>
+          <span id="tok-stream-lbl" style="font-size:11px;color:var(--muted);">Stream aus</span>
+          <button class="btn btn-success sm2" id="tok-stream-btn" onclick="toggleStream('token')">▶</button>
+          <button class="btn btn-ghost sm2"   onclick="clearDocs('token')">Clear</button>
         </div>
       </div>
-      <div style="border-top:1px solid var(--border); padding-top:10px;">
-        <div class="pane-header" style="background:none; border:none; padding:0 0 6px 0;">
-          <h2>Live Stream Log</h2>
-          <button class="btn btn-ghost" style="padding:2px 8px; font-size:10px;" onclick="clearLog()">Clear</button>
+      <div class="pane-body">
+        <div id="tok-doc-list" class="doc-list"><div class="empty-hint">Push oder Pull um Dokumente zu laden</div></div>
+        <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);">Stream Log</span>
+            <button class="btn btn-ghost sm2" onclick="clearLog('tok-log')">Clear</button>
+          </div>
+          <div id="tok-log" class="stream-log"></div>
         </div>
-        <div id="stream-log" class="stream-log"></div>
       </div>
     </div>
   </div>
-
 </div>
 
 <script>
-  // ── State ─────────────────────────────────────────────────────────────────────
-  let token = null;
-  let userInfo = null;
-  let appId = null;
-  let checkpoint = null;
-  let localDocs = {};   // id → doc
-  let streamSrc = null;
-  let popupWin = null;
-  let pollTimer = null;
-  let statPulled = 0, statPushed = 0, statEvents = 0;
+// ── Session state ─────────────────────────────────────────────────────────────
+const S = {
+  isolated:  { token:null, appId:null, userInfo:null, checkpoint:null, localDocs:{}, streamSrc:null, clientId:null, stats:{p:0,w:0,e:0} },
+  'shared-a':{ token:null, appId:null, userInfo:null, checkpoint:null, localDocs:{}, streamSrc:null, stats:{p:0,w:0,e:0} },
+  'shared-b':{ token:null, appId:null, userInfo:null, checkpoint:null, localDocs:{}, streamSrc:null, stats:{p:0,w:0,e:0} },
+  token:     { token:null, rawToken:null, appId:null, checkpoint:null, localDocs:{}, streamSrc:null, stats:{p:0,w:0,e:0} },
+};
 
-  const BASE = '';  // same origin
+// Which session is waiting for OAuth popup
+let pendingOAuth = null;
 
-  // ── Boot: check if already logged in ─────────────────────────────────────────
-  window.addEventListener('load', () => {
-    const savedToken = localStorage.getItem('rxforge_token');
-    const savedUser  = tryParse(localStorage.getItem('rxforge_user'));
-    const savedApp   = localStorage.getItem('rxforge_tester_app_id');
-    if (savedToken) {
-      token    = savedToken;
-      userInfo = savedUser;
-      if (savedApp) appId = savedApp;
-      showConnected();
+// Map: sessionId → element-prefix
+function pfx(sid) {
+  if (sid === 'isolated') return 'iso';
+  if (sid === 'shared-a') return 'sha';
+  if (sid === 'shared-b') return 'shb';
+  return 'tok';
+}
+
+// ── Mode switching ────────────────────────────────────────────────────────────
+function switchMode(mode) {
+  ['isolated','shared','token'].forEach(m => {
+    document.getElementById('mode-' + m).style.display = m === mode ? 'flex' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+  localStorage.setItem('rxft_mode', mode);
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  const redirectUri = location.origin + '/sync-tester';
+  const isoRedir = document.getElementById('iso-redirect');
+  if (isoRedir) isoRedir.value = redirectUri;
+
+  // OAuth callback: if we are the popup, post message and close
+  const params = new URLSearchParams(location.search);
+  const code = params.get('code'), error = params.get('error');
+  if (code || error) {
+    if (window.opener) {
+      window.opener.postMessage({ rxforge_oauth: { code, error } }, location.origin);
+      window.close();
+      return;
     }
-    document.getElementById('redirect-uri-input').value = location.origin + '/sync-tester';
-    document.getElementById('app-id-overlay').addEventListener('keydown', e => {
-      if (e.key === 'Enter') connectViaPopup();
-    });
+    history.replaceState({}, '', location.pathname);
+  }
+
+  // Listen for popup callback
+  window.addEventListener('message', (e) => {
+    if (e.origin !== location.origin || !pendingOAuth) return;
+    const msg = e.data?.rxforge_oauth;
+    if (!msg) return;
+    const sid = pendingOAuth;
+    pendingOAuth = null;
+    if (msg.error) showErr(sid, 'OAuth abgebrochen: ' + msg.error);
+    else if (msg.code) exchangeCode(sid, msg.code);
   });
 
-  function tryParse(s) { try { return JSON.parse(s); } catch { return null; } }
+  // Restore saved mode
+  switchMode(localStorage.getItem('rxft_mode') || 'isolated');
 
-  // ── Connect via popup ─────────────────────────────────────────────────────────
-  function connectViaPopup() {
-    const appIdVal = document.getElementById('app-id-overlay').value.trim();
-    if (appIdVal) appId = appIdVal;
+  // Restore sessions
+  restoreOAuth('isolated');
+  restoreOAuth('shared-a');
+  restoreOAuth('shared-b');
+  restoreToken();
+});
 
-    const previousToken = localStorage.getItem('rxforge_token');
-    const w = 480, h = 640;
-    const left = Math.round(screen.width / 2 - w / 2);
-    const top  = Math.round(screen.height / 2 - h / 2);
-    popupWin = window.open(
-      '/login',
-      'rxforge_login',
-      `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`
-    );
-    if (!popupWin) {
-      showOverlayError('Popup blocked — please allow popups for this site.');
-      return;
-    }
+function restoreOAuth(sid) {
+  const raw = localStorage.getItem('rxft_sess_' + sid);
+  if (!raw) return;
+  try {
+    const d = JSON.parse(raw);
+    Object.assign(S[sid], d);
+    S[sid].userInfo = (d.token ? (p => p ? {email: p.email||p.sub} : null)(parseJwt(d.token)) : null);
+    applyConnected(sid);
+  } catch {}
+}
 
-    // Poll localStorage for a new token
-    pollTimer = setInterval(() => {
-      const t = localStorage.getItem('rxforge_token');
-      if (t && t !== previousToken) {
-        clearInterval(pollTimer);
-        token    = t;
-        userInfo = tryParse(localStorage.getItem('rxforge_user'));
-        if (popupWin && !popupWin.closed) popupWin.close();
-        if (appIdVal) {
-          localStorage.setItem('rxforge_tester_app_id', appIdVal);
-        }
-        showConnected();
-        return;
-      }
-      if (popupWin && popupWin.closed) {
-        clearInterval(pollTimer);
-        // Maybe they were already logged in and the page just navigated
-        const t2 = localStorage.getItem('rxforge_token');
-        if (t2) { token = t2; userInfo = tryParse(localStorage.getItem('rxforge_user')); showConnected(); }
-        else showOverlayError('Login window closed without signing in.');
-      }
-    }, 400);
-  }
+function restoreToken() {
+  const raw = localStorage.getItem('rxft_tok_raw');
+  const jwt = localStorage.getItem('rxft_tok_jwt');
+  const app = localStorage.getItem('rxft_tok_app');
+  if (!raw) return;
+  S.token.rawToken = raw;
+  S.token.token    = jwt;
+  S.token.appId    = app;
+  applyConnected('token');
+}
 
-  function showOverlayError(msg) {
-    const el = document.getElementById('overlay-error');
-    el.textContent = msg;
-    el.style.display = 'block';
-  }
+// ── OAuth connect ─────────────────────────────────────────────────────────────
+function oauthConnect(sid) {
+  const cid = sid === 'isolated'
+    ? document.getElementById('iso-cid').value.trim()
+    : document.getElementById('sh-cid').value.trim();
+  if (!cid) { showErr(sid, 'Bitte Client ID eingeben.'); return; }
 
-  function showConnected() {
-    document.getElementById('locked-overlay').style.display = 'none';
-    document.getElementById('setup-bar').style.display = 'flex';
-    document.getElementById('disconnect-btn').style.display = '';
+  S[sid].clientId = cid;
+  pendingOAuth = sid;
 
-    const pill = document.getElementById('status-pill');
-    pill.textContent = 'Connected';
-    pill.className = 'pill connected';
+  const redirectUri = location.origin + '/sync-tester';
+  const url = `/oauth/authorize?response_type=code&client_id=${encodeURIComponent(cid)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+  const w = 480, h = 680;
+  const popup = window.open(url, 'rxforge_oauth_' + sid,
+    `width=${w},height=${h},left=${Math.round(screen.width/2-w/2)},top=${Math.round(screen.height/2-h/2)},resizable=yes,scrollbars=yes`);
+  if (!popup) showErr(sid, 'Popup blockiert — bitte Popups für diese Seite erlauben.');
+}
 
-    const userPill = document.getElementById('user-pill');
-    userPill.textContent = userInfo ? userInfo.email + ' (' + userInfo.role + ')' : '';
-
-    if (appId) {
-      document.getElementById('app-id-input').value = appId;
-    }
-    document.getElementById('redirect-uri-input').value = location.origin + '/sync-tester';
-  }
-
-  function disconnect() {
-    token = null; userInfo = null; appId = null; checkpoint = null;
-    localDocs = {};
-    stopStream();
-    localStorage.removeItem('rxforge_token');
-    localStorage.removeItem('rxforge_user');
-    localStorage.removeItem('rxforge_tester_app_id');
-    document.getElementById('locked-overlay').style.display = 'flex';
-    document.getElementById('setup-bar').style.display = 'none';
-    document.getElementById('disconnect-btn').style.display = 'none';
-    const pill = document.getElementById('status-pill');
-    pill.textContent = 'Not connected';
-    pill.className = 'pill';
-    document.getElementById('user-pill').textContent = '';
-    renderDocs();
-  }
-
-  function applyAppId() {
-    const val = document.getElementById('app-id-input').value.trim();
-    if (!val) { alert('Please enter an App ID'); return; }
-    appId = val;
-    checkpoint = null;
-    localStorage.setItem('rxforge_tester_app_id', appId);
-    stopStream();
-    renderDocs();
-    pullDocs();
-  }
-
-  function copyUri() {
-    navigator.clipboard.writeText(location.origin + '/sync-tester');
-  }
-
-  // ── API ───────────────────────────────────────────────────────────────────────
-  async function api(method, path, body) {
-    const res = await fetch(BASE + path, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token,
-      },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+async function exchangeCode(sid, code) {
+  const sess = S[sid];
+  try {
+    const res = await fetch('/api/v1/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code', code,
+        redirect_uri: location.origin + '/sync-tester',
+        client_id:    sess.clientId,
+      }).toString(),
     });
-    const text = await res.text();
-    let data;
-    try { data = JSON.parse(text); } catch { data = text; }
-    return { ok: res.ok, status: res.status, data };
+    const data = await res.json();
+    if (!res.ok || !data.access_token) { showErr(sid, 'Token-Austausch fehlgeschlagen: ' + (data.error||'Unbekannt')); return; }
+    sess.token    = data.access_token;
+    const payload = parseJwt(sess.token);
+    sess.appId    = payload?.app_id ?? null;
+    sess.userInfo = payload ? { email: payload.email || payload.sub } : null;
+    localStorage.setItem('rxft_sess_' + sid, JSON.stringify({ token: sess.token, appId: sess.appId, clientId: sess.clientId }));
+    applyConnected(sid);
+  } catch (e) { showErr(sid, 'Fehler: ' + e.message); }
+}
+
+// ── Token connect ─────────────────────────────────────────────────────────────
+async function tokenConnect() {
+  const raw = document.getElementById('tok-input').value.trim();
+  if (!raw.startsWith('rxft_')) { showErr('token', 'Token muss mit rxft_ beginnen.'); return; }
+  try {
+    // Exchange to get app_id from JWT payload
+    const res  = await fetch('/api/v1/auth/token/exchange', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({token:raw}) });
+    const data = await res.json();
+    if (!res.ok) { showErr('token', data.error||'Ungültiger Token.'); return; }
+    S.token.rawToken = raw;
+    S.token.token    = data.access_token;
+    const payload    = parseJwt(data.access_token);
+    S.token.appId    = payload?.app_id ?? null;
+    localStorage.setItem('rxft_tok_raw', raw);
+    localStorage.setItem('rxft_tok_jwt', data.access_token);
+    localStorage.setItem('rxft_tok_app', S.token.appId || '');
+    applyConnected('token');
+  } catch (e) { showErr('token', 'Fehler: ' + e.message); }
+}
+
+// ── Apply connected UI state ──────────────────────────────────────────────────
+function applyConnected(sid) {
+  if (sid === 'isolated') {
+    document.getElementById('iso-overlay').style.display   = 'none';
+    document.getElementById('iso-bar').style.display       = 'flex';
+    document.getElementById('iso-workspace').style.display = 'grid';
+    document.getElementById('iso-app-id').value = S.isolated.appId || '';
+    document.getElementById('iso-user-pill').textContent = S.isolated.userInfo?.email || '';
+  } else if (sid === 'shared-a') {
+    setPill('sha-pill', 'Verbunden', true);
+    document.getElementById('sha-user').textContent = S['shared-a'].userInfo?.email || '';
+    document.getElementById('sha-login').style.display = 'none';
+    document.getElementById('sha-disc').style.display  = '';
+  } else if (sid === 'shared-b') {
+    setPill('shb-pill', 'Verbunden', true);
+    document.getElementById('shb-user').textContent = S['shared-b'].userInfo?.email || '';
+    document.getElementById('shb-login').style.display = 'none';
+    document.getElementById('shb-disc').style.display  = '';
+  } else if (sid === 'token') {
+    document.getElementById('tok-overlay').style.display   = 'none';
+    document.getElementById('tok-bar').style.display       = 'flex';
+    document.getElementById('tok-workspace').style.display = 'grid';
+    document.getElementById('tok-app-id').value = S.token.appId || '';
   }
+}
 
-  // ── Push ──────────────────────────────────────────────────────────────────────
-  async function pushDocs(docs) {
-    if (!token)  return showResult('Not connected', 'err');
-    if (!appId)  return showResult('Enter an App ID first', 'err');
+function setPill(id, text, connected) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text;
+  el.className = connected ? 'pill connected' : 'pill';
+}
 
-    if (!docs) {
-      // Build from form
-      const id    = document.getElementById('doc-id').value.trim()    || genId();
-      const title = document.getElementById('doc-title').value.trim() || 'Untitled';
-      const body  = document.getElementById('doc-body').value.trim()  || '';
-      let extra = {};
-      try { extra = JSON.parse(document.getElementById('doc-extra').value || '{}'); } catch {}
-      docs = [{ id, title, body, updatedAt: Date.now(), ...extra }];
-    }
+// ── Disconnect ────────────────────────────────────────────────────────────────
+function disconnect(sid) {
+  stopStream(sid);
+  const sess = S[sid];
+  sess.token = null; sess.appId = null; sess.userInfo = null;
+  sess.checkpoint = null; sess.localDocs = {};
+  if ('rawToken' in sess) sess.rawToken = null;
+  localStorage.removeItem('rxft_sess_' + sid);
 
-    try {
-      const r = await api('POST', `/api/v1/sync/${appId}/push`, { documents: docs });
-      if (r.ok) {
-        statPushed += r.data.written ?? docs.length;
-        docs.forEach(d => { if (d.id) localDocs[d.id] = { ...d, _new: true }; });
-        showResult(`✓ written: ${r.data.written}  conflicts: ${JSON.stringify(r.data.conflicts ?? [])}`, 'ok');
-        renderDocs();
-        updateStats();
-        // clear id field so next push gets a fresh id
-        document.getElementById('doc-id').value = '';
-      } else {
-        showResult(`✗ ${r.status}: ${JSON.stringify(r.data)}`, 'err');
-      }
-    } catch (e) { showResult('✗ ' + e.message, 'err'); }
+  if (sid === 'isolated') {
+    document.getElementById('iso-overlay').style.display   = 'flex';
+    document.getElementById('iso-bar').style.display       = 'none';
+    document.getElementById('iso-workspace').style.display = 'none';
+    renderDocs(sid);
+  } else if (sid === 'shared-a') {
+    setPill('sha-pill', 'Nicht verbunden', false);
+    document.getElementById('sha-user').textContent = '';
+    document.getElementById('sha-login').style.display = '';
+    document.getElementById('sha-disc').style.display  = 'none';
+    renderDocs(sid);
+  } else if (sid === 'shared-b') {
+    setPill('shb-pill', 'Nicht verbunden', false);
+    document.getElementById('shb-user').textContent = '';
+    document.getElementById('shb-login').style.display = '';
+    document.getElementById('shb-disc').style.display  = 'none';
+    renderDocs(sid);
+  } else if (sid === 'token') {
+    localStorage.removeItem('rxft_tok_raw');
+    localStorage.removeItem('rxft_tok_jwt');
+    localStorage.removeItem('rxft_tok_app');
+    document.getElementById('tok-overlay').style.display   = 'flex';
+    document.getElementById('tok-bar').style.display       = 'none';
+    document.getElementById('tok-workspace').style.display = 'none';
+    renderDocs(sid);
   }
+}
 
-  // ── Pull ──────────────────────────────────────────────────────────────────────
-  async function pullDocs(reset = false) {
-    if (!token) return showResult('Not connected', 'err');
-    if (!appId) return showResult('Enter an App ID first', 'err');
-    if (reset) checkpoint = null;
+// ── API ───────────────────────────────────────────────────────────────────────
+async function apiCall(method, path, body, tok) {
+  const res  = await fetch(path, { method, headers: {'Content-Type':'application/json','Authorization':'Bearer '+tok}, body: body !== undefined ? JSON.stringify(body) : undefined });
+  const text = await res.text();
+  let data; try { data = JSON.parse(text); } catch { data = text; }
+  return { ok: res.ok, status: res.status, data };
+}
 
-    let url = `/api/v1/sync/${appId}/pull?limit=200`;
-    if (checkpoint) url += `&checkpoint=${encodeURIComponent(checkpoint)}`;
-    try {
-      const r = await api('GET', url);
-      if (r.ok) {
-        checkpoint = r.data.checkpoint ?? checkpoint;
-        const docs = r.data.documents ?? [];
-        docs.forEach(d => { if (d && d.id) localDocs[d.id] = d; });
-        statPulled += docs.length;
-        showResult(`✓ ${docs.length} doc(s) pulled  ·  checkpoint: ${checkpoint ?? 'none'}`, 'ok');
-        renderDocs();
-        updateStats();
-      } else {
-        showResult(`✗ ${r.status}: ${JSON.stringify(r.data)}`, 'err');
-      }
-    } catch (e) { showResult('✗ ' + e.message, 'err'); }
+async function getWriteToken(sid) {
+  if (sid !== 'token') return S[sid].token;
+  // Token mode: exchange raw token for a fresh JWT for write access
+  const raw = S.token.rawToken;
+  if (!raw) return null;
+  const res  = await fetch('/api/v1/auth/token/exchange', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({token:raw}) });
+  const data = await res.json();
+  if (!res.ok || !data.access_token) throw new Error(data.error||'Token exchange failed');
+  S.token.token = data.access_token;
+  return data.access_token;
+}
+
+function getReadToken(sid) {
+  return sid === 'token' ? S.token.rawToken : S[sid].token;
+}
+
+// ── Push ──────────────────────────────────────────────────────────────────────
+async function pushDoc(sid, docs) {
+  const sess = S[sid];
+  if (!sess.appId) { showResult(sid, '✗ Nicht verbunden', 'err'); return; }
+  if (!docs) {
+    const p = pfx(sid);
+    const id    = document.getElementById(p+'-doc-id').value.trim()    || genId();
+    const title = document.getElementById(p+'-doc-title').value.trim() || 'Untitled';
+    const body  = document.getElementById(p+'-doc-body').value.trim()  || '';
+    let extra = {};
+    const exEl = document.getElementById(p+'-doc-extra');
+    if (exEl) try { extra = JSON.parse(exEl.value||'{}'); } catch {}
+    docs = [{ id, title, body, updatedAt: Date.now(), ...extra }];
   }
+  try {
+    const tok = await getWriteToken(sid);
+    if (!tok) { showResult(sid, '✗ Kein Token', 'err'); return; }
+    const r = await apiCall('POST', `/api/v1/sync/${sess.appId}/push`, { documents: docs }, tok);
+    if (r.ok) {
+      sess.stats.w += r.data.written ?? docs.length;
+      docs.forEach(d => { if (d.id) sess.localDocs[d.id] = {...d, _new: true}; });
+      showResult(sid, `✓ geschrieben: ${r.data.written}  conflicts: ${JSON.stringify(r.data.conflicts??[])}`, 'ok');
+      renderDocs(sid);
+      updateStats(sid);
+      const idEl = document.getElementById(pfx(sid)+'-doc-id');
+      if (idEl) idEl.value = '';
+    } else { showResult(sid, `✗ ${r.status}: ${JSON.stringify(r.data)}`, 'err'); }
+  } catch (e) { showResult(sid, '✗ ' + e.message, 'err'); }
+}
 
-  // ── Render docs ───────────────────────────────────────────────────────────────
-  function renderDocs() {
-    const list = document.getElementById('doc-list');
-    const docs = Object.values(localDocs);
-    if (docs.length === 0) {
-      list.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:32px 0;">Push a document or pull to load from CouchDB</div>';
-      return;
-    }
-    list.innerHTML = '';
-    docs.slice().reverse().forEach(doc => {
-      const el = document.createElement('div');
-      el.className = 'doc-card' + (doc._new ? ' new' : '');
-      el.innerHTML = `
-        <div class="doc-meta">
-          <div class="doc-id">${esc(doc.id)}</div>
-          <div class="doc-title">${esc(doc.title || '(no title)')}</div>
-          ${doc.body ? `<div class="doc-body">${esc(doc.body)}</div>` : ''}
-        </div>
-        <div class="doc-actions">
-          <button class="icon-btn" onclick="editDoc('${esc(doc.id)}')" title="Edit">✎</button>
-          <button class="icon-btn danger" onclick="deleteDoc('${esc(doc.id)}')" title="Delete">✕</button>
-        </div>`;
-      list.appendChild(el);
-    });
+// ── Pull ──────────────────────────────────────────────────────────────────────
+async function pullDocs(sid, reset = false) {
+  const sess = S[sid];
+  if (!sess.appId) { showResult(sid, '✗ Nicht verbunden', 'err'); return; }
+  if (reset) sess.checkpoint = null;
+  let url = `/api/v1/sync/${sess.appId}/pull?limit=200`;
+  if (sess.checkpoint) url += `&checkpoint=${encodeURIComponent(sess.checkpoint)}`;
+  try {
+    const r = await apiCall('GET', url, undefined, getReadToken(sid));
+    if (r.ok) {
+      sess.checkpoint = r.data.checkpoint ?? sess.checkpoint;
+      const docs = r.data.documents ?? [];
+      docs.forEach(d => { if (d?.id) sess.localDocs[d.id] = d; });
+      sess.stats.p += docs.length;
+      showResult(sid, `✓ ${docs.length} Dok(e)  ·  checkpoint: ${sess.checkpoint ?? 'keiner'}`, 'ok');
+      renderDocs(sid);
+      updateStats(sid);
+    } else { showResult(sid, `✗ ${r.status}: ${JSON.stringify(r.data)}`, 'err'); }
+  } catch (e) { showResult(sid, '✗ ' + e.message, 'err'); }
+}
+
+// ── Render docs ───────────────────────────────────────────────────────────────
+function renderDocs(sid) {
+  const listId = pfx(sid) + '-doc-list';
+  const list   = document.getElementById(listId);
+  if (!list) return;
+  const docs = Object.values(S[sid].localDocs).filter(d => !d._deleted);
+  if (docs.length === 0) { list.innerHTML = '<div class="empty-hint">Keine Dokumente</div>'; return; }
+  list.innerHTML = '';
+  docs.slice().reverse().forEach(doc => {
+    const el = document.createElement('div');
+    el.className = 'doc-card' + (doc._new ? ' new' : '');
+    el.innerHTML = `
+      <div class="doc-meta">
+        <div class="doc-id">${esc(doc.id)}</div>
+        <div class="doc-title">${esc(doc.title||'(kein Titel)')}</div>
+        ${doc.body ? `<div class="doc-body">${esc(doc.body)}</div>` : ''}
+      </div>
+      <div class="doc-actions">
+        <button class="icon-btn"        onclick="editDoc('${esc(sid)}','${esc(doc.id)}')" title="Bearbeiten">✎</button>
+        <button class="icon-btn danger" onclick="deleteDoc('${esc(sid)}','${esc(doc.id)}')" title="Löschen">✕</button>
+      </div>`;
+    list.appendChild(el);
+  });
+}
+
+function editDoc(sid, id) {
+  const doc = S[sid].localDocs[id]; if (!doc) return;
+  const p = pfx(sid);
+  document.getElementById(p+'-doc-id').value    = doc.id;
+  document.getElementById(p+'-doc-title').value = doc.title || '';
+  document.getElementById(p+'-doc-body').value  = doc.body  || '';
+  const exEl = document.getElementById(p+'-doc-extra');
+  if (exEl) {
+    const extra = Object.fromEntries(Object.entries(doc).filter(([k]) => !['id','title','body','updatedAt','_new','_deleted'].includes(k)));
+    exEl.value = Object.keys(extra).length ? JSON.stringify(extra, null, 2) : '';
   }
+}
 
-  function editDoc(id) {
-    const doc = localDocs[id];
-    if (!doc) return;
-    document.getElementById('doc-id').value    = doc.id;
-    document.getElementById('doc-title').value = doc.title || '';
-    document.getElementById('doc-body').value  = doc.body  || '';
-    const extra = Object.fromEntries(
-      Object.entries(doc).filter(([k]) => !['id','title','body','updatedAt','_new'].includes(k))
-    );
-    document.getElementById('doc-extra').value = Object.keys(extra).length ? JSON.stringify(extra, null, 2) : '';
-  }
+async function deleteDoc(sid, id) {
+  const doc = { ...(S[sid].localDocs[id] || {id}), _deleted: true, updatedAt: Date.now() };
+  await pushDoc(sid, [doc]);
+  delete S[sid].localDocs[id];
+  renderDocs(sid);
+}
 
-  async function deleteDoc(id) {
-    if (!confirm(`Delete "${id}"?`)) return;
-    const doc = localDocs[id] || { id };
-    doc._deleted = true;
-    doc.updatedAt = Date.now();
-    await pushDocs([doc]);
-    delete localDocs[id];
-    renderDocs();
-  }
+function clearDocs(sid) { S[sid].localDocs = {}; renderDocs(sid); }
 
-  function clearDocs() { localDocs = {}; renderDocs(); }
+// ── Fill helpers ──────────────────────────────────────────────────────────────
+function fillRandom(p) {
+  document.getElementById(p+'-doc-id').value    = genId();
+  document.getElementById(p+'-doc-title').value = 'Doc ' + Math.random().toString(36).slice(2,7);
+  document.getElementById(p+'-doc-body').value  = 'Erstellt: ' + new Date().toISOString();
+  const exEl = document.getElementById(p+'-doc-extra');
+  if (exEl) exEl.value = '{"tags":["test"]}';
+}
 
-  // ── Random / batch ────────────────────────────────────────────────────────────
-  function fillRandom() {
-    document.getElementById('doc-id').value    = genId();
-    document.getElementById('doc-title').value = 'Doc ' + Math.random().toString(36).substring(2, 7);
-    document.getElementById('doc-body').value  = 'Auto-generated at ' + new Date().toISOString();
-    document.getElementById('doc-extra').value = '{"tags": ["test"]}';
-  }
+async function fillBatch(sid) {
+  const docs = Array.from({length:10}, () => ({
+    id: genId(), title: 'Batch-' + genId().slice(4,9),
+    body: 'Batch-Test', updatedAt: Date.now(), tags: ['batch'],
+  }));
+  await pushDoc(sid, docs);
+}
 
-  async function fillBatch() {
-    const docs = Array.from({ length: 10 }, () => ({
-      id: genId(), title: 'Batch ' + genId().substring(0, 6),
-      body: 'Batch test', updatedAt: Date.now(), tags: ['batch'],
-    }));
-    await pushDocs(docs);
-  }
+// ── Stream ────────────────────────────────────────────────────────────────────
+function toggleStream(sid) {
+  S[sid].streamSrc ? stopStream(sid) : startStream(sid);
+}
 
-  function genId() { return 'doc-' + Math.random().toString(36).substring(2, 11); }
+function startStream(sid) {
+  const sess = S[sid];
+  if (!sess.token || !sess.appId) { logLine(sid, '✗ Nicht verbunden', 'err'); return; }
+  logLine(sid, 'Verbinde…', 'info');
+  const src = new EventSource(`/api/v1/sync/${sess.appId}/stream?token=${encodeURIComponent(sess.token)}`);
+  sess.streamSrc = src;
+  src.addEventListener('change', e => {
+    sess.stats.e++;
+    let data; try { data = JSON.parse(e.data); } catch { data = e.data; }
+    if (data?.documents) { data.documents.forEach(d => { if (d?.id) sess.localDocs[d.id] = d; }); if (data.checkpoint) sess.checkpoint = data.checkpoint; renderDocs(sid); }
+    logLine(sid, 'change → ' + JSON.stringify(data));
+    updateStats(sid);
+  });
+  src.onopen  = () => { setStreamUI(sid, true);  logLine(sid, 'Verbunden', 'ok'); };
+  src.onerror = () => { logLine(sid, 'Fehler / geschlossen', 'err'); stopStream(sid); };
+}
 
-  // ── Stream ────────────────────────────────────────────────────────────────────
-  function toggleStream() {
-    if (streamSrc) stopStream(); else startStream();
-  }
+function stopStream(sid) {
+  const sess = S[sid];
+  if (sess?.streamSrc) { sess.streamSrc.close(); sess.streamSrc = null; }
+  setStreamUI(sid, false);
+}
 
-  function startStream() {
-    if (!token || !appId) { logLine('✗ Need app + token', 'err'); return; }
-    const url = `${BASE}/api/v1/sync/${appId}/stream?token=${encodeURIComponent(token)}`;
-    logLine('Connecting…', 'info');
-    streamSrc = new EventSource(url);
+function setStreamUI(sid, live) {
+  const p   = pfx(sid);
+  const dot = document.getElementById(p + '-dot');
+  const lbl = document.getElementById(p + '-stream-lbl');
+  const btn = document.getElementById(p + '-stream-btn');
+  if (!dot) return;
+  dot.className = live ? 'dot live' : 'dot';
+  if (lbl) lbl.textContent = live ? 'Live' : 'Stream aus';
+  if (btn) { btn.textContent = live ? '■' : '▶'; btn.className = live ? 'btn btn-danger sm2' : 'btn btn-success sm2'; }
+}
 
-    streamSrc.addEventListener('change', e => {
-      statEvents++;
-      let data; try { data = JSON.parse(e.data); } catch { data = e.data; }
-      if (data?.documents) {
-        data.documents.forEach(d => { if (d?.id) localDocs[d.id] = d; });
-        if (data.checkpoint) checkpoint = data.checkpoint;
-        renderDocs();
-      }
-      logLine('change → ' + JSON.stringify(data), 'data');
-      updateStats();
-    });
+// ── Result / log ──────────────────────────────────────────────────────────────
+function showResult(sid, msg, cls) {
+  const el = document.getElementById(pfx(sid)+'-push-result');
+  if (!el) return;
+  el.style.display = '';
+  el.textContent   = msg;
+  el.className     = 'result-box ' + (cls||'');
+}
 
-    streamSrc.onopen = () => {
-      document.getElementById('stream-dot').className   = 'dot live';
-      document.getElementById('stream-label').textContent = 'Live';
-      document.getElementById('stream-btn').textContent  = '■ Stop';
-      document.getElementById('stream-btn').className    = 'btn btn-danger';
-      logLine('Connected', 'ok');
-    };
+function logLine(sid, text, cls) {
+  const log = document.getElementById(pfx(sid)+'-log');
+  if (!log) return;
+  const div = document.createElement('div');
+  div.className   = 'log-line ' + (cls||'');
+  div.textContent = `[${new Date().toISOString().slice(11,23)}] ${text}`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
 
-    streamSrc.onerror = () => { logLine('Stream error / closed', 'err'); stopStream(); };
-  }
+function clearLog(id) { const el = document.getElementById(id); if (el) el.innerHTML = ''; }
 
-  function stopStream() {
-    if (streamSrc) { streamSrc.close(); streamSrc = null; }
-    document.getElementById('stream-dot').className    = 'dot';
-    document.getElementById('stream-label').textContent = 'Stream off';
-    document.getElementById('stream-btn').textContent   = '▶ Stream';
-    document.getElementById('stream-btn').className     = 'btn btn-success';
-  }
+function updateStats(sid) {
+  const s = S[sid].stats;
+  const p = pfx(sid);
+  // only isolated and token have stat bars
+  const sp = document.getElementById(p+'-st-p'), sw = document.getElementById(p+'-st-w'), se = document.getElementById(p+'-st-e');
+  if (sp) sp.textContent = s.p;
+  if (sw) sw.textContent = s.w;
+  if (se) se.textContent = s.e;
+}
 
-  // ── Helpers ───────────────────────────────────────────────────────────────────
-  function showResult(msg, cls) {
-    const el = document.getElementById('push-result');
-    el.style.display = '';
-    el.textContent   = msg;
-    el.className     = 'result-box ' + (cls || '');
-  }
+// ── Error helpers ─────────────────────────────────────────────────────────────
+function showErr(sid, msg) {
+  if (sid === 'isolated') { showElErr('iso-error', msg); }
+  else if (sid === 'token') { showElErr('tok-error', msg); }
+  else { showResult(sid, msg, 'err'); }
+}
 
-  function logLine(text, cls) {
-    const log = document.getElementById('stream-log');
-    const ts  = new Date().toISOString().substring(11, 23);
-    const div = document.createElement('div');
-    div.className   = 'log-line ' + (cls || '');
-    div.textContent = `[${ts}] ${text}`;
-    log.appendChild(div);
-    log.scrollTop = log.scrollHeight;
-  }
+function showElErr(id, msg) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
 
-  function clearLog() { document.getElementById('stream-log').innerHTML = ''; }
-
-  function updateStats() {
-    document.getElementById('st-pulled').textContent = statPulled;
-    document.getElementById('st-pushed').textContent = statPushed;
-    document.getElementById('st-events').textContent = statEvents;
-  }
-
-  function esc(s) {
-    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function genId()   { return 'doc-' + Math.random().toString(36).slice(2,11); }
+function parseJwt(t) { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); } catch { return null; } }
+function esc(s)    { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function copy(id)  { const el = document.getElementById(id); if (el) navigator.clipboard.writeText(el.value); }
 </script>
 </body>
 </html>

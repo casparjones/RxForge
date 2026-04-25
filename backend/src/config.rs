@@ -11,6 +11,10 @@ pub struct Config {
     pub jwt_public_key_path: String,
     pub server_port: u16,
     pub frontend_dir: String,
+    /// If set, registration requires this code.
+    pub register_invite_code: Option<String>,
+    /// If set, a user logging in with this email is auto-promoted to superadmin.
+    pub admin_user_email: Option<String>,
 }
 
 impl Config {
@@ -29,6 +33,8 @@ impl Config {
                 .parse()
                 .context("SERVER_PORT must be a valid port number")?,
             frontend_dir: env::var("FRONTEND_DIR").unwrap_or_else(|_| "./frontend/build".to_string()),
+            register_invite_code: env::var("REGISTER_INVITE_CODE").ok(),
+            admin_user_email: env::var("ADMIN_USER_EMAIL").ok(),
         })
     }
 }

@@ -56,11 +56,15 @@ async fn main() -> anyhow::Result<()> {
         &config.couchdb_password,
     );
 
+    // Start batched analytics writer (collects events, flushes every 5 s or 200 events)
+    let analytics = analytics::start_analytics_writer(db.clone());
+
     let state = AppState {
         db: db.clone(),
         config: config.clone(),
         jwt,
         couchdb,
+        analytics: analytics.clone(),
     };
 
     // CORS
@@ -78,8 +82,8 @@ async fn main() -> anyhow::Result<()> {
     let app = routes::api_router()
         .fallback_service(static_files)
         .layer(axum_middleware::from_fn_with_state(
-            db.clone(),
-            |state: axum::extract::State<sqlx::PgPool>,
+            analytics,
+            |state: axum::extract::State<analytics::AnalyticsSender>,
              req: axum::extract::Request,
              next: axum::middleware::Next| async move {
                 analytics::track_request(state.0, req, next).await

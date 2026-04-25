@@ -11,6 +11,9 @@ frontend/build/
 plugin/dist/
 *.tsbuildinfo
 
+# Keys / secrets
+keys/
+
 # Env
 .env
 .env.local

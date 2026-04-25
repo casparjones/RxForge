@@ -9,6 +9,8 @@ use std::pin::Pin;
 #[derive(Clone)]
 pub struct CouchDbClient {
     client: Client,
+    /// Separate client without a request timeout, used for long-lived streams.
+    stream_client: Client,
     base_url: String,
     user: String,
     password: String,
@@ -33,8 +35,15 @@ impl CouchDbClient {
             .build()
             .expect("Failed to build HTTP client");
 
+        let stream_client = Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(10))
+            // No overall timeout — streams are long-lived by design
+            .build()
+            .expect("Failed to build streaming HTTP client");
+
         Self {
             client,
+            stream_client,
             base_url: base_url.trim_end_matches('/').to_string(),
             user: user.to_string(),
             password: password.to_string(),
@@ -189,21 +198,26 @@ impl CouchDbClient {
         Ok(BulkDocsResult { written, conflicts })
     }
 
-    /// Stream _changes feed as SSE-compatible byte stream.
+    /// Stream _changes feed as SSE events with `event: change`.
+    ///
+    /// CouchDB's continuous feed emits newline-delimited JSON.  Each non-empty
+    /// line is a change record that we reshape into the same
+    /// `{ documents, checkpoint }` envelope used by the pull endpoint, then
+    /// emit as a proper SSE event so the browser's EventSource can fire it.
     pub async fn changes_stream(
         &self,
         db_name: String,
     ) -> Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send>> {
         let url = format!(
-            "{}/{}/_changes?feed=continuous&include_docs=true&heartbeat=30000",
+            "{}/{}/_changes?feed=continuous&include_docs=true&heartbeat=15000",
             self.base_url, db_name
         );
 
-        let client = self.client.clone();
+        // Use the no-timeout client so the connection isn't killed after 30 s.
+        let client = self.stream_client.clone();
         let user = self.user.clone();
         let password = self.password.clone();
 
-        // Build a stream that wraps the CouchDB continuous feed
         let stream = async_stream::stream! {
             let response = client
                 .get(&url)
@@ -212,27 +226,69 @@ impl CouchDbClient {
                 .await;
 
             match response {
+                Err(e) => {
+                    tracing::error!("CouchDB stream connect error: {e}");
+                    let event = format!("event: error\ndata: {{\"error\":\"{e}\"}}\n\n");
+                    yield Ok(Bytes::from(event));
+                }
                 Ok(resp) => {
+                    // Buffer incomplete lines across chunks
+                    let mut line_buf = String::new();
                     let mut byte_stream = resp.bytes_stream();
                     use futures_util::StreamExt;
+
                     while let Some(chunk) = byte_stream.next().await {
                         match chunk {
-                            Ok(bytes) => {
-                                // Wrap as SSE event
-                                let event = format!("data: {}\n\n", String::from_utf8_lossy(&bytes));
-                                yield Ok(Bytes::from(event));
-                            }
                             Err(e) => {
-                                tracing::error!("CouchDB stream error: {e}");
+                                tracing::error!("CouchDB stream read error: {e}");
                                 break;
+                            }
+                            Ok(bytes) => {
+                                line_buf.push_str(&String::from_utf8_lossy(&bytes));
+
+                                // Process all complete newline-terminated lines
+                                while let Some(pos) = line_buf.find('\n') {
+                                    let line = line_buf[..pos].trim().to_string();
+                                    line_buf = line_buf[pos + 1..].to_string();
+
+                                    if line.is_empty() {
+                                        // CouchDB heartbeat — send SSE comment to keep connection alive
+                                        yield Ok(Bytes::from(": heartbeat\n\n"));
+                                        continue;
+                                    }
+
+                                    if let Ok(record) = serde_json::from_str::<Value>(&line) {
+                                        let doc = record.get("doc").cloned();
+                                        let seq = record.get("seq").cloned()
+                                            .unwrap_or(Value::String("0".to_string()));
+
+                                        // Skip deleted docs and design docs
+                                        let skip = doc.as_ref().map(|d| {
+                                            d.get("_deleted").is_some()
+                                            || d.get("_id")
+                                                .and_then(|id| id.as_str())
+                                                .map(|id| id.starts_with('_'))
+                                                .unwrap_or(false)
+                                        }).unwrap_or(true);
+
+                                        if skip { continue; }
+
+                                        let payload = serde_json::json!({
+                                            "documents": [doc.unwrap()],
+                                            "checkpoint": seq,
+                                        });
+
+                                        // Emit as SSE `change` event matching what the client expects
+                                        let event = format!(
+                                            "event: change\ndata: {}\n\n",
+                                            payload
+                                        );
+                                        yield Ok(Bytes::from(event));
+                                    }
+                                }
                             }
                         }
                     }
-                }
-                Err(e) => {
-                    tracing::error!("Failed to connect to CouchDB stream: {e}");
-                    let event = format!("event: error\ndata: {e}\n\n");
-                    yield Ok(Bytes::from(event));
                 }
             }
         };

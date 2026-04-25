@@ -4,7 +4,7 @@ use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, 
 use std::{fs, path::Path};
 use uuid::Uuid;
 
-use crate::middleware::auth::Claims;
+use crate::middleware::auth::{AppClaims, Claims};
 
 #[derive(Clone)]
 pub struct JwtManager {
@@ -122,6 +122,31 @@ impl JwtManager {
 
         encode(&Header::new(Algorithm::RS256), &claims, &self.encoding_key)
             .context("Failed to encode refresh JWT")
+    }
+
+    /// Issue a 15-minute app-scoped JWT for a token exchange.
+    pub fn issue_app_jwt(&self, token_id: &str, app_id: &str, user_id: &str) -> Result<String> {
+        let now = Utc::now().timestamp();
+        let claims = AppClaims {
+            sub: token_id.to_string(),
+            app_id: app_id.to_string(),
+            user_id: user_id.to_string(),
+            scope: "sync:write".to_string(),
+            iat: now,
+            exp: now + 3600, // 1 hour
+            jti: Uuid::new_v4().to_string(),
+        };
+        encode(&Header::new(Algorithm::RS256), &claims, &self.encoding_key)
+            .context("Failed to encode app JWT")
+    }
+
+    /// Verify and decode an app-scoped JWT (from token exchange).
+    pub fn verify_app_jwt(&self, token: &str) -> Result<AppClaims> {
+        let mut validation = Validation::new(Algorithm::RS256);
+        validation.validate_exp = true;
+        let token_data = decode::<AppClaims>(token, &self.decoding_key, &validation)
+            .context("App JWT verification failed")?;
+        Ok(token_data.claims)
     }
 
     /// Verify and decode a token.

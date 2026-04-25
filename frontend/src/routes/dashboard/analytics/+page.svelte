@@ -1,19 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
-	import { auth } from '$lib/stores/auth';
 	import { toast } from '$lib/stores/toast';
 	import { Line } from 'svelte-chartjs';
 	import {
 		Chart as ChartJS,
-		CategoryScale,
-		LinearScale,
-		PointElement,
-		LineElement,
-		Title,
-		Tooltip,
-		Legend,
-		Filler,
+		CategoryScale, LinearScale, PointElement, LineElement,
+		Title, Tooltip, Legend, Filler,
 	} from 'chart.js';
 
 	ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
@@ -25,60 +18,43 @@
 
 	const chartData = $derived.by(() => {
 		if (!stats?.daily_requests) return null;
-		const labels = stats.daily_requests.map((d: any) => d.date);
-		const data = stats.daily_requests.map((d: any) => d.count);
 		return {
-			labels,
-			datasets: [
-				{
-					label: 'Requests per Day',
-					data,
-					borderColor: '#6366f1',
-					backgroundColor: 'rgba(99, 102, 241, 0.1)',
-					fill: true,
-					tension: 0.4,
-				},
-			],
+			labels: stats.daily_requests.map((d: any) => d.date),
+			datasets: [{
+				label: 'Requests per Day',
+				data: stats.daily_requests.map((d: any) => d.count),
+				borderColor: '#7c7cff',
+				backgroundColor: 'rgba(124,124,255,0.08)',
+				fill: true, tension: 0.4,
+				pointBackgroundColor: '#7c7cff',
+				pointRadius: 3,
+			}],
 		};
 	});
 
 	const chartOptions = {
 		responsive: true,
-		plugins: {
-			legend: { display: false },
-			title: { display: false },
-		},
+		plugins: { legend: { display: false } },
 		scales: {
-			y: { beginAtZero: true, grid: { color: '#f3f4f6' } },
-			x: { grid: { display: false } },
+			y: { beginAtZero: true, grid: { color: 'rgba(124,124,255,0.07)' }, ticks: { color: '#8b8fa8', font: { family: 'JetBrains Mono', size: 11 } } },
+			x: { grid: { display: false }, ticks: { color: '#8b8fa8', font: { family: 'JetBrains Mono', size: 11 } } },
 		},
 	};
 
 	async function loadApps() {
 		try {
 			apps = await api.apps.list();
-			if (apps.length > 0) {
-				selectedAppId = apps[0].id;
-				await loadStats();
-			}
-		} catch (e: any) {
-			toast.error('Failed to load apps: ' + e.message);
-		} finally {
-			loading = false;
-		}
+			if (apps.length > 0) { selectedAppId = apps[0].id; await loadStats(); }
+		} catch (e: any) { toast.error('Failed to load apps: ' + e.message); }
+		finally { loading = false; }
 	}
 
 	async function loadStats() {
 		if (!selectedAppId) return;
 		loading = true;
-		try {
-			stats = await api.apps.getStats(selectedAppId);
-		} catch (e: any) {
-			toast.error('Failed to load stats: ' + e.message);
-			stats = null;
-		} finally {
-			loading = false;
-		}
+		try { stats = await api.apps.getStats(selectedAppId); }
+		catch (e: any) { toast.error('Failed to load stats: ' + e.message); stats = null; }
+		finally { loading = false; }
 	}
 
 	onMount(loadApps);
@@ -86,12 +62,16 @@
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between flex-wrap gap-3">
-		<h1 class="text-2xl font-bold text-gray-900">App Analytics</h1>
+		<div>
+			<div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.15em; color:#7c7cff; margin-bottom:8px; text-transform:uppercase;">── Analytics</div>
+			<h1 class="text-2xl font-semibold" style="letter-spacing:-.02em;">App Analytics</h1>
+		</div>
 		{#if apps.length > 0}
 			<select
 				bind:value={selectedAppId}
 				onchange={loadStats}
-				class="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+				class="px-4 py-2 rounded-lg text-sm outline-none"
+				style="background:var(--c-surface); border:1px solid var(--c-border); color:var(--c-text); font-family:'JetBrains Mono',monospace;"
 			>
 				{#each apps as app (app.id)}
 					<option value={app.id}>{app.name}</option>
@@ -102,41 +82,37 @@
 
 	{#if loading}
 		<div class="flex justify-center py-16">
-			<div class="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+			<div class="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style="border-color:#7c7cff; border-top-color:transparent;"></div>
 		</div>
 	{:else if !stats}
-		<div class="text-center py-16 bg-white rounded-2xl border border-gray-200">
-			<p class="text-gray-500">No analytics data available.</p>
+		<div class="text-center py-16 rounded-xl" style="background:var(--c-surface); border:1px solid var(--c-border);">
+			<p style="color:var(--c-muted); font-family:'JetBrains Mono',monospace; font-size:12px;">No analytics data available.</p>
 		</div>
 	{:else}
-		<!-- Stat Cards -->
 		<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-			<div class="bg-white rounded-2xl border border-gray-200 p-6">
-				<p class="text-sm text-gray-500">Requests Today</p>
-				<p class="text-3xl font-bold text-indigo-600 mt-1">{stats.requests_today ?? 0}</p>
-			</div>
-			<div class="bg-white rounded-2xl border border-gray-200 p-6">
-				<p class="text-sm text-gray-500">Last 7 Days</p>
-				<p class="text-3xl font-bold text-indigo-600 mt-1">{stats.requests_7d ?? 0}</p>
-			</div>
-			<div class="bg-white rounded-2xl border border-gray-200 p-6">
-				<p class="text-sm text-gray-500">Last 30 Days</p>
-				<p class="text-3xl font-bold text-indigo-600 mt-1">{stats.requests_30d ?? 0}</p>
-			</div>
+			{#each [
+				{ label: 'Requests Today', value: stats.requests_today ?? 0 },
+				{ label: 'Last 7 Days',    value: stats.requests_7d ?? 0 },
+				{ label: 'Last 30 Days',   value: stats.requests_30d ?? 0 },
+			] as card}
+				<div class="rounded-xl p-6" style="background:var(--c-surface); border:1px solid var(--c-border);">
+					<p style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--c-muted); margin-bottom:8px;">{card.label}</p>
+					<p class="text-3xl font-bold" style="color:#7c7cff;">{card.value}</p>
+				</div>
+			{/each}
 		</div>
 
-		<!-- Line Chart -->
 		{#if chartData}
-			<div class="bg-white rounded-2xl border border-gray-200 p-6">
-				<h2 class="text-base font-semibold text-gray-800 mb-4">Requests per Day (Last 30 Days)</h2>
+			<div class="rounded-xl p-6" style="background:var(--c-surface); border:1px solid var(--c-border);">
+				<p style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--c-muted); margin-bottom:20px;">Requests · Last 30 Days</p>
 				<Line data={chartData} options={chartOptions} />
 			</div>
 		{/if}
 	{/if}
 
 	{#if apps.length === 0 && !loading}
-		<div class="text-center py-16 bg-white rounded-2xl border border-gray-200">
-			<p class="text-gray-500">No apps found. <a href="/dashboard/apps" class="text-indigo-600 hover:underline">Create an app</a> to see analytics.</p>
+		<div class="text-center py-16 rounded-xl" style="background:var(--c-surface); border:1px solid var(--c-border);">
+			<p style="color:var(--c-muted); font-size:14px;">No apps found. <a href="/dashboard/apps" style="color:#7c7cff;">Create an app</a> to see analytics.</p>
 		</div>
 	{/if}
 </div>

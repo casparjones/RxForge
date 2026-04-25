@@ -7,6 +7,19 @@ use serde::{Deserialize, Serialize};
 
 use crate::{error::AppError, state::AppState};
 
+/// Claims embedded in a short-lived JWT issued by the token-exchange endpoint.
+/// Scoped to a single app; sub = app_token row id.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppClaims {
+    pub sub: String,      // app_token id (UUID)
+    pub app_id: String,
+    pub user_id: String,  // app owner's user_id
+    pub scope: String,    // "sync:write"
+    pub exp: i64,
+    pub iat: i64,
+    pub jti: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String, // user id (UUID)

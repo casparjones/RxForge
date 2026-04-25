@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 
-use crate::{config::Config, couchdb::CouchDbClient, jwt::JwtManager};
+use crate::{analytics::AnalyticsSender, config::Config, couchdb::CouchDbClient, jwt::JwtManager};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -8,4 +8,5 @@ pub struct AppState {
     pub config: Config,
     pub jwt: JwtManager,
     pub couchdb: CouchDbClient,
+    pub analytics: AnalyticsSender,
 }

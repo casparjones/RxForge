@@ -1,26 +1,47 @@
-use axum::{extract::State, routing::post, Json, Router};
-use bcrypt::{hash, verify, DEFAULT_COST};
+use axum::{extract::State, routing::{get, post}, Json, Router};
+use bcrypt::{hash, verify};
+
+// Cost 4 in debug builds for fast iteration; 12 in release for security.
+#[cfg(debug_assertions)]
+const BCRYPT_COST: u32 = 4;
+#[cfg(not(debug_assertions))]
+const BCRYPT_COST: u32 = 12;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
     error::{AppError, AppResult},
     middleware::auth::AuthUser,
+    routes::tokens::exchange_token,
     state::AppState,
 };
 
 pub fn router() -> Router<AppState> {
     Router::new()
+        .route("/info", get(auth_info))
         .route("/register", post(register))
         .route("/login", post(login))
         .route("/refresh", post(refresh))
         .route("/logout", post(logout))
+        .route("/me/stats", get(me_stats))
         .route("/2fa/setup", post(totp_setup))
         .route("/2fa/verify", post(totp_verify))
         .route("/webauthn/register-start", post(webauthn_register_start))
         .route("/webauthn/register-finish", post(webauthn_register_finish))
         .route("/webauthn/login-start", post(webauthn_login_start))
         .route("/webauthn/login-finish", post(webauthn_login_finish))
+        .route("/token/exchange", post(exchange_token))
+}
+
+#[derive(Debug, Serialize)]
+pub struct AuthInfoResponse {
+    pub invite_required: bool,
+}
+
+pub async fn auth_info(State(state): State<AppState>) -> Json<AuthInfoResponse> {
+    Json(AuthInfoResponse {
+        invite_required: state.config.register_invite_code.is_some(),
+    })
 }
 
 // ── Register ─────────────────────────────────────────────────────────────────
@@ -29,6 +50,7 @@ pub fn router() -> Router<AppState> {
 pub struct RegisterRequest {
     pub email: String,
     pub password: String,
+    pub invite_code: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -50,6 +72,13 @@ pub async fn register(
         ));
     }
 
+    if let Some(required_code) = &state.config.register_invite_code {
+        let provided = req.invite_code.as_deref().unwrap_or("");
+        if provided != required_code.as_str() {
+            return Err(AppError::Forbidden("Invalid invite code".to_string()));
+        }
+    }
+
     let existing: Option<(Uuid,)> = sqlx::query_as("SELECT id FROM users WHERE email = $1")
         .bind(&req.email)
         .fetch_optional(&state.db)
@@ -59,7 +88,10 @@ pub async fn register(
         return Err(AppError::Conflict("Email already registered".to_string()));
     }
 
-    let password_hash = hash(&req.password, DEFAULT_COST)
+    let password = req.password.clone();
+    let password_hash = tokio::task::spawn_blocking(move || hash(password, BCRYPT_COST))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("bcrypt join: {e}")))?
         .map_err(|e| AppError::Internal(anyhow::anyhow!("bcrypt error: {e}")))?;
 
     let id = Uuid::new_v4();
@@ -111,21 +143,52 @@ pub async fn login(
     State(state): State<AppState>,
     Json(req): Json<LoginRequest>,
 ) -> AppResult<Json<LoginResponse>> {
-    let row: Option<(Uuid, String, String, String)> =
-        sqlx::query_as("SELECT id, email, password_hash, role FROM users WHERE email = $1")
+    let row: Option<(Uuid, String, String, String, bool)> =
+        sqlx::query_as("SELECT id, email, password_hash, role, locked FROM users WHERE email = $1")
             .bind(&req.email)
             .fetch_optional(&state.db)
             .await?;
 
-    let (user_id, email, password_hash, role) =
+    let (user_id, email, password_hash, role, locked) =
         row.ok_or_else(|| AppError::Unauthorized("Invalid credentials".to_string()))?;
 
-    let valid = verify(&req.password, &password_hash)
+    if locked {
+        return Err(AppError::Forbidden("Account is locked.".to_string()));
+    }
+
+    let password = req.password.clone();
+    let valid = tokio::task::spawn_blocking(move || verify(password, &password_hash))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("bcrypt join: {e}")))?
         .map_err(|e| AppError::Internal(anyhow::anyhow!("bcrypt verify error: {e}")))?;
 
     if !valid {
         return Err(AppError::Unauthorized("Invalid credentials".to_string()));
     }
+
+    // Auto-promote to superadmin if email matches ADMIN_USER_EMAIL config.
+    let role = if let Some(admin_email) = &state.config.admin_user_email {
+        if email.to_lowercase() == admin_email.to_lowercase() && role != "superadmin" {
+            sqlx::query("UPDATE users SET role = 'superadmin' WHERE id = $1")
+                .bind(user_id)
+                .execute(&state.db)
+                .await?;
+            "superadmin".to_string()
+        } else {
+            role
+        }
+    } else {
+        role
+    };
+
+    // Record login timestamp (non-blocking).
+    let db = state.db.clone();
+    tokio::spawn(async move {
+        let _ = sqlx::query("UPDATE users SET last_login_at = NOW() WHERE id = $1")
+            .bind(user_id)
+            .execute(&db)
+            .await;
+    });
 
     // If the user has a verified TOTP, a fresh code is required.
     let totp_row: Option<(String, bool)> =
@@ -197,6 +260,47 @@ pub async fn login(
             email,
             role,
         },
+    }))
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+pub struct MeStatsResponse {
+    pub last_login_at: Option<String>,
+    pub app_count: i64,
+    pub granted_rights_count: i64,
+}
+
+pub async fn me_stats(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<MeStatsResponse>> {
+    let user_id = Uuid::parse_str(user.user_id())
+        .map_err(|_| AppError::Internal(anyhow::anyhow!("Invalid user ID")))?;
+
+    let row: (Option<chrono::DateTime<chrono::Utc>>,) =
+        sqlx::query_as("SELECT last_login_at FROM users WHERE id = $1")
+            .bind(user_id)
+            .fetch_one(&state.db)
+            .await?;
+
+    let (app_count,): (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM apps WHERE owner_id = $1")
+            .bind(user_id)
+            .fetch_one(&state.db)
+            .await?;
+
+    let (rights_count,): (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM oauth_consents WHERE user_id = $1")
+            .bind(user_id)
+            .fetch_one(&state.db)
+            .await?;
+
+    Ok(Json(MeStatsResponse {
+        last_login_at: row.0.map(|dt| dt.to_rfc3339()),
+        app_count,
+        granted_rights_count: rights_count,
     }))
 }
 

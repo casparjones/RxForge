@@ -1,6 +1,6 @@
 use axum::{
     extract::{Path, State},
-    routing::{get, patch},
+    routing::{get, patch, put},
     Json, Router,
 };
 use chrono::{DateTime, Utc};
@@ -15,15 +15,20 @@ use crate::{
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/users", get(list_users))
-        .route("/users/{id}/role", patch(update_user_role))
+        .route("/users",                    get(list_users))
+        .route("/users/{id}/role",          patch(update_user_role))
+        .route("/users/{id}/lock",          put(set_locked))
+        .route("/users/{id}/permissions",   put(update_permissions))
+        .route("/users/{id}/apps",          get(list_user_apps))
 }
 
-#[derive(Debug, Serialize, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow)]
 struct UserRow {
     pub id: Uuid,
     pub email: String,
     pub role: String,
+    pub locked: bool,
+    pub permissions: Vec<String>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -32,6 +37,8 @@ pub struct UserAdminResponse {
     pub id: String,
     pub email: String,
     pub role: String,
+    pub locked: bool,
+    pub permissions: Vec<String>,
     pub created_at: String,
 }
 
@@ -41,10 +48,11 @@ pub async fn list_users(
 ) -> AppResult<Json<Vec<UserAdminResponse>>> {
     require_permission(&user, "users:manage")?;
 
-    let rows: Vec<UserRow> =
-        sqlx::query_as("SELECT id, email, role, created_at FROM users ORDER BY created_at DESC")
-            .fetch_all(&state.db)
-            .await?;
+    let rows: Vec<UserRow> = sqlx::query_as(
+        "SELECT id, email, role, locked, permissions, created_at FROM users ORDER BY created_at DESC",
+    )
+    .fetch_all(&state.db)
+    .await?;
 
     let users = rows
         .into_iter()
@@ -52,6 +60,8 @@ pub async fn list_users(
             id: r.id.to_string(),
             email: r.email,
             role: r.role,
+            locked: r.locked,
+            permissions: r.permissions,
             created_at: r.created_at.to_rfc3339(),
         })
         .collect();
@@ -104,6 +114,109 @@ pub async fn update_user_role(
     Ok(Json(MessageResponse {
         message: format!("User role updated to '{}'", req.role),
     }))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SetLockedRequest {
+    pub locked: bool,
+}
+
+pub async fn set_locked(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(target_id): Path<Uuid>,
+    Json(req): Json<SetLockedRequest>,
+) -> AppResult<Json<MessageResponse>> {
+    require_permission(&user, "users:manage")?;
+
+    let result = sqlx::query(
+        "UPDATE users SET locked = $1, updated_at = NOW() WHERE id = $2",
+    )
+    .bind(req.locked)
+    .bind(target_id)
+    .execute(&state.db)
+    .await?;
+
+    if result.rows_affected() == 0 {
+        return Err(AppError::NotFound("User not found".to_string()));
+    }
+
+    Ok(Json(MessageResponse {
+        message: if req.locked { "Account locked.".into() } else { "Account unlocked.".into() },
+    }))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdatePermissionsRequest {
+    pub permissions: Vec<String>,
+}
+
+pub async fn update_permissions(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(target_id): Path<Uuid>,
+    Json(req): Json<UpdatePermissionsRequest>,
+) -> AppResult<Json<MessageResponse>> {
+    require_permission(&user, "users:manage")?;
+
+    let result = sqlx::query(
+        "UPDATE users SET permissions = $1, updated_at = NOW() WHERE id = $2",
+    )
+    .bind(&req.permissions)
+    .bind(target_id)
+    .execute(&state.db)
+    .await?;
+
+    if result.rows_affected() == 0 {
+        return Err(AppError::NotFound("User not found".to_string()));
+    }
+
+    Ok(Json(MessageResponse {
+        message: "Permissions updated.".into(),
+    }))
+}
+
+#[derive(Debug, Serialize, sqlx::FromRow)]
+struct AppRow {
+    pub id: Uuid,
+    pub name: String,
+    pub auth_type: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AppAdminResponse {
+    pub id: String,
+    pub name: String,
+    pub auth_type: String,
+    pub created_at: String,
+}
+
+pub async fn list_user_apps(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(target_id): Path<Uuid>,
+) -> AppResult<Json<Vec<AppAdminResponse>>> {
+    require_permission(&user, "users:manage")?;
+
+    let rows: Vec<AppRow> = sqlx::query_as(
+        "SELECT id, name, auth_type, created_at FROM apps WHERE owner_id = $1 ORDER BY created_at DESC",
+    )
+    .bind(target_id)
+    .fetch_all(&state.db)
+    .await?;
+
+    let apps = rows
+        .into_iter()
+        .map(|r| AppAdminResponse {
+            id: r.id.to_string(),
+            name: r.name,
+            auth_type: r.auth_type,
+            created_at: r.created_at.to_rfc3339(),
+        })
+        .collect();
+
+    Ok(Json(apps))
 }
 
 #[cfg(test)]

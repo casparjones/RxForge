@@ -2500,6 +2500,7 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-subscriber",
+ "urlencoding",
  "uuid",
  "webauthn-rs",
  "wiremock",

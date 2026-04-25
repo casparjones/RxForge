@@ -1,0 +1,2 @@
+ALTER TABLE apps
+    ADD COLUMN IF NOT EXISTS db_scope VARCHAR NOT NULL DEFAULT 'isolated';

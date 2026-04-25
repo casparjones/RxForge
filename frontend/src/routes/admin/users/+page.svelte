@@ -23,6 +23,9 @@
 	let editPermissions = $state<string[]>([]);
 	let saving = $state(false);
 
+	let userApps = $state<any[]>([]);
+	let loadingApps = $state(false);
+
 	function openConfirm(title: string, message: string, action: () => void) {
 		confirmTitle = title;
 		confirmMessage = message;
@@ -41,11 +44,20 @@
 		}
 	}
 
-	function openUser(user: any) {
+	async function openUser(user: any) {
 		selectedUser = user;
 		editRole = user.role ?? 'user';
 		editPermissions = [...(user.permissions ?? [])];
+		userApps = [];
 		slideoverOpen = true;
+		loadingApps = true;
+		try {
+			userApps = await api.admin.users.apps(user.id);
+		} catch {
+			userApps = [];
+		} finally {
+			loadingApps = false;
+		}
 	}
 
 	async function saveRole() {
@@ -115,8 +127,8 @@
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
-		<h1 class="text-2xl font-bold text-gray-900">User Management</h1>
-		<span class="text-sm text-gray-500">{users.length} total users</span>
+		<h1 class="text-2xl font-bold" style="color:var(--c-text);">User Management</h1>
+		<span class="text-sm" style="color:var(--c-muted);">{users.length} total users</span>
 	</div>
 
 	<!-- Filters -->
@@ -125,11 +137,15 @@
 			type="search"
 			bind:value={search}
 			placeholder="Search by email or ID…"
-			class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm flex-1 min-w-48"
+			class="flex-1 min-w-48 px-4 py-2 rounded-lg text-sm outline-none"
+			style="background:var(--c-surface); border:1px solid var(--c-border); color:var(--c-text);"
+			onfocus={(e) => { (e.currentTarget as HTMLElement).style.borderColor='#f87171'; }}
+			onblur={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border)'; }}
 		/>
 		<select
 			bind:value={roleFilter}
-			class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm bg-white"
+			class="px-4 py-2 rounded-lg text-sm outline-none"
+			style="background:var(--c-surface); border:1px solid var(--c-border); color:var(--c-text);"
 		>
 			<option value="all">All Roles</option>
 			{#each ROLES as r}
@@ -141,46 +157,49 @@
 	<!-- Table -->
 	{#if loading}
 		<div class="flex justify-center py-16">
-			<div class="w-8 h-8 border-4 border-red-200 border-t-red-600 rounded-full animate-spin"></div>
+			<div class="w-8 h-8 border-4 rounded-full animate-spin" style="border-color:rgba(248,113,113,.25); border-top-color:#f87171;"></div>
 		</div>
 	{:else}
-		<div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+		<div class="rounded-2xl overflow-hidden" style="background:var(--c-surface); border:1px solid var(--c-border);">
 			<table class="w-full">
-				<thead class="bg-gray-50 border-b border-gray-200">
+				<thead style="background:var(--c-surface-2); border-bottom:1px solid var(--c-border);">
 					<tr>
-						<th class="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Email</th>
-						<th class="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Role</th>
-						<th class="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Status</th>
-						<th class="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Actions</th>
+						<th class="text-left px-6 py-3 text-xs font-medium uppercase tracking-wide" style="color:var(--c-muted);">Email</th>
+						<th class="text-left px-6 py-3 text-xs font-medium uppercase tracking-wide" style="color:var(--c-muted);">Role</th>
+						<th class="text-left px-6 py-3 text-xs font-medium uppercase tracking-wide" style="color:var(--c-muted);">Status</th>
+						<th class="text-left px-6 py-3 text-xs font-medium uppercase tracking-wide" style="color:var(--c-muted);">Actions</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-gray-100">
+				<tbody>
 					{#each filteredUsers as user (user.id)}
-						<tr class="hover:bg-gray-50 transition">
+						<tr style="border-top:1px solid var(--c-border);">
 							<td class="px-6 py-4">
-								<div class="font-medium text-gray-900">{user.email}</div>
-								<div class="text-xs text-gray-400 font-mono mt-0.5">{user.id}</div>
+								<div class="font-medium" style="color:var(--c-text);">{user.email}</div>
+								<div class="text-xs mt-0.5 font-mono" style="color:var(--c-muted);">{user.id}</div>
 							</td>
 							<td class="px-6 py-4">
-								<span class="px-2 py-0.5 rounded-full text-xs font-medium {
-									user.role === 'superadmin' ? 'bg-purple-100 text-purple-700' :
-									user.role === 'admin' ? 'bg-red-100 text-red-700' :
-									'bg-gray-100 text-gray-600'
+								<span class="px-2 py-0.5 rounded-full text-xs font-medium" style="{
+									user.role === 'superadmin' ? 'background:rgba(168,85,247,.15); color:#c084fc;' :
+									user.role === 'admin' ? 'background:rgba(248,113,113,.15); color:#f87171;' :
+									'background:var(--c-surface-2); color:var(--c-muted);'
 								}">
 									{user.role ?? 'user'}
 								</span>
 							</td>
 							<td class="px-6 py-4">
 								{#if user.locked}
-									<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Locked</span>
+									<span class="px-2 py-0.5 rounded-full text-xs font-medium" style="background:rgba(248,113,113,.15); color:#f87171;">Locked</span>
 								{:else}
-									<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Active</span>
+									<span class="px-2 py-0.5 rounded-full text-xs font-medium" style="background:rgba(74,222,128,.15); color:#4ade80;">Active</span>
 								{/if}
 							</td>
 							<td class="px-6 py-4">
 								<button
 									onclick={() => openUser(user)}
-									class="text-sm text-red-600 hover:text-red-800 font-medium"
+									class="text-sm font-medium transition-colors"
+									style="color:#f87171;"
+									onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.color='#fca5a5'; }}
+									onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.color='#f87171'; }}
 								>
 									Manage
 								</button>
@@ -188,7 +207,7 @@
 						</tr>
 					{:else}
 						<tr>
-							<td colspan="4" class="px-6 py-12 text-center text-gray-400">No users found</td>
+							<td colspan="4" class="px-6 py-12 text-center" style="color:var(--c-muted);">No users found</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -200,30 +219,32 @@
 <!-- Slide-over -->
 {#if slideoverOpen && selectedUser}
 	<div
-		class="fixed inset-0 bg-black/40 z-40"
+		class="fixed inset-0 z-40"
+		style="background:rgba(0,0,0,.5);"
 		onclick={() => { slideoverOpen = false; }}
 		role="presentation"
 	></div>
-	<div class="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl z-50 overflow-y-auto">
-		<div class="p-6 border-b border-gray-200 flex items-center justify-between">
-			<h2 class="text-lg font-semibold text-gray-900">Manage User</h2>
-			<button onclick={() => { slideoverOpen = false; }} class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+	<div class="fixed right-0 top-0 h-full w-full max-w-md z-50 overflow-y-auto shadow-2xl" style="background:var(--c-surface);">
+		<div class="p-6 flex items-center justify-between" style="border-bottom:1px solid var(--c-border);">
+			<h2 class="text-lg font-semibold" style="color:var(--c-text);">Manage User</h2>
+			<button onclick={() => { slideoverOpen = false; }} class="text-2xl leading-none" style="color:var(--c-muted);">&times;</button>
 		</div>
 
 		<div class="p-6 space-y-6">
 			<div>
-				<p class="text-sm text-gray-500">Email</p>
-				<p class="font-medium text-gray-900">{selectedUser.email}</p>
+				<p class="text-sm" style="color:var(--c-muted);">Email</p>
+				<p class="font-medium" style="color:var(--c-text);">{selectedUser.email}</p>
 			</div>
 
 			<!-- Role -->
 			<div>
-				<label for="editRole" class="block text-sm font-medium text-gray-700 mb-2">Role</label>
+				<label for="editRole" class="block text-sm font-medium mb-2" style="color:var(--c-text);">Role</label>
 				<div class="flex gap-2 items-center">
 					<select
 						id="editRole"
 						bind:value={editRole}
-						class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 outline-none"
+						class="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+						style="background:var(--c-surface-2); border:1px solid var(--c-border); color:var(--c-text);"
 					>
 						{#each ROLES as r}
 							<option value={r}>{r}</option>
@@ -232,14 +253,17 @@
 					<button
 						onclick={saveRole}
 						disabled={saving}
-						class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg disabled:opacity-60 transition"
+						class="px-3 py-2 text-sm font-medium rounded-lg disabled:opacity-60 transition"
+						style="background:#f87171; color:#fff;"
+						onmouseenter={(e) => { if (!saving) (e.currentTarget as HTMLElement).style.background='#ef4444'; }}
+						onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#f87171'; }}
 					>Save</button>
 				</div>
 			</div>
 
 			<!-- Permissions -->
 			<div>
-				<p class="block text-sm font-medium text-gray-700 mb-2">Permissions</p>
+				<p class="text-sm font-medium mb-2" style="color:var(--c-text);">Permissions</p>
 				<div class="space-y-2">
 					{#each ALL_PERMISSIONS as perm}
 						<label class="flex items-center gap-3 cursor-pointer">
@@ -247,26 +271,51 @@
 								type="checkbox"
 								checked={editPermissions.includes(perm)}
 								onchange={() => togglePermission(perm)}
-								class="w-4 h-4 text-red-600 rounded border-gray-300"
+								class="w-4 h-4 rounded"
 							/>
-							<span class="text-sm text-gray-700 font-mono">{perm}</span>
+							<span class="text-sm font-mono" style="color:var(--c-text);">{perm}</span>
 						</label>
 					{/each}
 				</div>
 				<button
 					onclick={savePermissions}
 					disabled={saving}
-					class="mt-3 px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg disabled:opacity-60 transition"
+					class="mt-3 px-3 py-2 text-sm font-medium rounded-lg disabled:opacity-60 transition"
+					style="background:#f87171; color:#fff;"
+					onmouseenter={(e) => { if (!saving) (e.currentTarget as HTMLElement).style.background='#ef4444'; }}
+					onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#f87171'; }}
 				>Save Permissions</button>
 			</div>
 
+			<!-- Apps -->
+			<div style="border-top:1px solid var(--c-border); padding-top:20px;">
+				<p class="text-sm font-medium mb-3" style="color:var(--c-text);">Apps</p>
+				{#if loadingApps}
+					<p class="text-sm" style="color:var(--c-muted);">Loading…</p>
+				{:else if userApps.length === 0}
+					<p class="text-sm" style="color:var(--c-muted);">No apps registered.</p>
+				{:else}
+					<div class="space-y-2">
+						{#each userApps as app (app.id)}
+							<div class="rounded-lg px-4 py-3" style="background:var(--c-surface-2); border:1px solid var(--c-border);">
+								<div class="flex items-center justify-between gap-2">
+									<span class="font-medium text-sm" style="color:var(--c-text);">{app.name}</span>
+									<span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(124,124,255,.12); color:#7c7cff; font-family:'JetBrains Mono',monospace;">{app.auth_type}</span>
+								</div>
+								<p class="text-xs mt-1 font-mono" style="color:var(--c-muted);">{app.id}</p>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
 			<!-- Lock/Unlock -->
-			<div class="border-t border-gray-100 pt-5">
-				<p class="block text-sm font-medium text-gray-700 mb-2">Account Status</p>
-				<div class="flex items-center justify-between bg-gray-50 rounded-lg p-4">
+			<div style="border-top:1px solid var(--c-border); padding-top:20px;">
+				<p class="text-sm font-medium mb-2" style="color:var(--c-text);">Account Status</p>
+				<div class="flex items-center justify-between rounded-lg p-4" style="background:var(--c-surface-2);">
 					<div>
-						<p class="text-sm font-medium text-gray-900">{selectedUser.locked ? 'Locked' : 'Active'}</p>
-						<p class="text-xs text-gray-500 mt-0.5">{selectedUser.locked ? 'User cannot log in.' : 'User can log in normally.'}</p>
+						<p class="text-sm font-medium" style="color:var(--c-text);">{selectedUser.locked ? 'Locked' : 'Active'}</p>
+						<p class="text-xs mt-0.5" style="color:var(--c-muted);">{selectedUser.locked ? 'User cannot log in.' : 'User can log in normally.'}</p>
 					</div>
 					<button
 						onclick={() => openConfirm(
@@ -276,9 +325,8 @@
 								: `Prevent ${selectedUser.email} from logging in?`,
 							() => { toggleLock(); confirmOpen = false; }
 						)}
-						class="px-4 py-2 text-sm font-medium rounded-lg transition {selectedUser.locked
-							? 'bg-green-600 hover:bg-green-700 text-white'
-							: 'bg-red-600 hover:bg-red-700 text-white'}"
+						class="px-4 py-2 text-sm font-medium rounded-lg transition"
+						style="{selectedUser.locked ? 'background:#4ade80; color:#052e16;' : 'background:#f87171; color:#fff;'}"
 					>
 						{selectedUser.locked ? 'Unlock' : 'Lock'}
 					</button>
