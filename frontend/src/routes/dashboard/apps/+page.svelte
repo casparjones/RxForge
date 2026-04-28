@@ -3,6 +3,8 @@
 	import { api } from '$lib/api';
 	import { toast } from '$lib/stores/toast';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	import AppEditModal from '$lib/components/AppEditModal.svelte';
+	import DbBrowser from '$lib/components/DbBrowser.svelte';
 
 	let apps = $state<any[]>([]);
 	let loading = $state(true);
@@ -13,7 +15,11 @@
 	let newAppDbScope = $state<'isolated' | 'shared'>('isolated');
 	let creating = $state(false);
 
-	// Expanded / edit state per app
+	// Modal state
+	let editModalApp = $state<any | null>(null);
+	let browseApp = $state<any | null>(null);
+
+	// Expanded / edit state per app (kept for token section, no longer used for edit form)
 	let expandedApp = $state<string | null>(null);
 	let editName = $state<Record<string, string>>({});
 	let editAuthType = $state<Record<string, string>>({});
@@ -345,14 +351,22 @@ Use rxdb 15.x. Show the full working code.`;
 									Claude Prompt
 								</button>
 								<button
-									onclick={() => toggleExpand(app)}
-									class="text-sm font-medium transition"
-									style="color:#7c7cff;"
-									onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.color='#9090ff'; }}
-									onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.color='#7c7cff'; }}
+									onclick={() => { browseApp = app; }}
+									class="text-sm font-medium px-3 py-1.5 rounded-lg transition flex items-center gap-1.5"
+									style="color:#34d399; border:1px solid rgba(52,211,153,.25); background:rgba(52,211,153,.06);"
+									onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(52,211,153,.12)'; }}
+									onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(52,211,153,.06)'; }}
 								>
-									{expandedApp === app.id ? 'Schließen' : 'Bearbeiten'}
+									<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+									Browse
 								</button>
+								<button
+									onclick={() => { editModalApp = app; }}
+									class="text-sm font-medium px-3 py-1.5 rounded-lg transition"
+									style="color:#7c7cff; border:1px solid rgba(124,124,255,.25); background:rgba(124,124,255,.06);"
+									onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(124,124,255,.12)'; }}
+									onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(124,124,255,.06)'; }}
+								>Bearbeiten</button>
 							</div>
 						</div>
 					</div>
@@ -817,3 +831,19 @@ Use rxdb 15.x. Show the full working code.`;
 	onConfirm={confirmAction}
 	onCancel={() => { confirmOpen = false; }}
 />
+
+{#if editModalApp}
+	<AppEditModal
+		app={editModalApp}
+		onclose={() => { editModalApp = null; }}
+		onsaved={(updated) => { apps = apps.map(a => a.id === updated.id ? { ...a, ...updated } : a); }}
+		ondeleted={() => { apps = apps.filter(a => a.id !== editModalApp?.id); editModalApp = null; }}
+	/>
+{/if}
+
+{#if browseApp}
+	<DbBrowser
+		app={browseApp}
+		onclose={() => { browseApp = null; }}
+	/>
+{/if}

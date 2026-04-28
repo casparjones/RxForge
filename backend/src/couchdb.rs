@@ -358,6 +358,164 @@ impl CouchDbClient {
             anyhow::bail!("CouchDB health check failed: {}", response.status())
         }
     }
+
+    /// List non-design documents from a database using `_all_docs`.
+    /// Returns `(docs, total_rows)`. total_rows is the raw CouchDB count (may include design docs).
+    pub async fn list_docs(&self, db_name: &str, limit: u32, skip: u32) -> Result<(Vec<Value>, u64)> {
+        let url = format!(
+            "{}/{}/_all_docs?include_docs=true&limit={}&skip={}",
+            self.base_url, db_name, limit, skip
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .basic_auth(&self.user, Some(&self.password))
+            .send()
+            .await?;
+
+        if response.status() == StatusCode::NOT_FOUND {
+            return Ok((vec![], 0));
+        }
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("CouchDB _all_docs error {}: {}", status, body);
+        }
+
+        let payload: Value = response.json().await?;
+        let total = payload.get("total_rows").and_then(|v| v.as_u64()).unwrap_or(0);
+        let documents = payload
+            .get("rows")
+            .and_then(|rows| rows.as_array())
+            .map(|rows| {
+                rows.iter()
+                    .filter_map(|row| row.get("doc").cloned())
+                    .filter(|doc| {
+                        doc.get("_id")
+                            .and_then(|id| id.as_str())
+                            .map(|id| !id.starts_with('_'))
+                            .unwrap_or(false)
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        Ok((documents, total))
+    }
+
+    /// Delete all non-design documents using bulk tombstones.
+    pub async fn delete_all_docs(&self, db_name: &str) -> Result<usize> {
+        let url = format!("{}/{}/_all_docs", self.base_url, db_name);
+        let response = self.client.get(&url).basic_auth(&self.user, Some(&self.password)).send().await?;
+        if response.status() == StatusCode::NOT_FOUND { return Ok(0); }
+        if !response.status().is_success() {
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("CouchDB _all_docs: {}", body);
+        }
+        let data: Value = response.json().await?;
+        let tombstones: Vec<Value> = data.get("rows")
+            .and_then(|r| r.as_array())
+            .map(|rows| rows.iter().filter_map(|row| {
+                let id = row.get("id")?.as_str()?;
+                if id.starts_with('_') { return None; }
+                let rev = row.get("value")?.get("rev")?.as_str()?;
+                Some(serde_json::json!({ "_id": id, "_rev": rev, "_deleted": true }))
+            }).collect())
+            .unwrap_or_default();
+        let count = tombstones.len();
+        if count == 0 { return Ok(0); }
+        let bulk_url = format!("{}/{}/_bulk_docs", self.base_url, db_name);
+        let res = self.client.post(&bulk_url).basic_auth(&self.user, Some(&self.password))
+            .json(&serde_json::json!({ "docs": tombstones })).send().await?;
+        if !res.status().is_success() {
+            let body = res.text().await.unwrap_or_default();
+            anyhow::bail!("CouchDB bulk delete: {}", body);
+        }
+        Ok(count)
+    }
+
+    /// Fetch a single document by id.
+    pub async fn get_doc(&self, db_name: &str, doc_id: &str) -> Result<Option<Value>> {
+        let url = format!(
+            "{}/{}/{}",
+            self.base_url,
+            db_name,
+            urlencoding::encode(doc_id)
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .basic_auth(&self.user, Some(&self.password))
+            .send()
+            .await?;
+
+        match response.status() {
+            StatusCode::OK => Ok(Some(response.json().await?)),
+            StatusCode::NOT_FOUND => Ok(None),
+            status => {
+                let body = response.text().await.unwrap_or_default();
+                anyhow::bail!("CouchDB GET /{}/{} -> {}: {}", db_name, doc_id, status, body);
+            }
+        }
+    }
+
+    /// Create or update a document with a caller-provided id.
+    pub async fn put_doc(&self, db_name: &str, doc_id: &str, mut document: Value) -> Result<Value> {
+        if let Some(object) = document.as_object_mut() {
+            object.insert("_id".to_string(), Value::String(doc_id.to_string()));
+        }
+
+        let url = format!(
+            "{}/{}/{}",
+            self.base_url,
+            db_name,
+            urlencoding::encode(doc_id)
+        );
+
+        let response = self
+            .client
+            .put(&url)
+            .basic_auth(&self.user, Some(&self.password))
+            .json(&document)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("CouchDB PUT /{}/{} -> {}: {}", db_name, doc_id, status, body);
+        }
+
+        Ok(response.json().await?)
+    }
+
+    /// Delete a document by id and revision.
+    pub async fn delete_doc(&self, db_name: &str, doc_id: &str, rev: &str) -> Result<Value> {
+        let url = format!(
+            "{}/{}/{}?rev={}",
+            self.base_url,
+            db_name,
+            urlencoding::encode(doc_id),
+            urlencoding::encode(rev)
+        );
+
+        let response = self
+            .client
+            .delete(&url)
+            .basic_auth(&self.user, Some(&self.password))
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("CouchDB DELETE /{}/{} -> {}: {}", db_name, doc_id, status, body);
+        }
+
+        Ok(response.json().await?)
+    }
 }
 
 #[cfg(test)]

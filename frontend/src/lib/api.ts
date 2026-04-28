@@ -52,6 +52,24 @@ export const api = {
       revoke: (appId: string, tokenId: string) =>
         fetchApi(`/apps/${appId}/tokens/${tokenId}`, { method: 'DELETE' }),
     },
+    db: {
+      list: (appId: string, page = 1, perPage = 20) =>
+        fetchApi<{ docs: any[]; total: number; page: number; per_page: number; pages: number }>(
+          `/apps/${appId}/db/docs?page=${page}&per_page=${perPage}`
+        ),
+      getDoc: (appId: string, docId: string) =>
+        fetchApi<any>(`/apps/${appId}/db/docs/${encodeURIComponent(docId)}`),
+      updateDoc: (appId: string, docId: string, body: any) =>
+        fetchApi<any>(`/apps/${appId}/db/docs/${encodeURIComponent(docId)}`, {
+          method: 'PUT', body: JSON.stringify(body),
+        }),
+      deleteDoc: (appId: string, docId: string, rev: string) =>
+        fetchApi<any>(`/apps/${appId}/db/docs/${encodeURIComponent(docId)}?rev=${encodeURIComponent(rev)}`, {
+          method: 'DELETE',
+        }),
+      deleteAll: (appId: string) =>
+        fetchApi<{ deleted: number }>(`/apps/${appId}/db/docs`, { method: 'DELETE' }),
+    },
   },
   admin: {
     users: {
