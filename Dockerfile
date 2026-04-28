@@ -41,11 +41,11 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 FROM gcr.io/distroless/cc-debian12
 
 COPY --from=backend-builder /rxforge-backend /rxforge
-COPY --from=frontend-builder /app/frontend/build /app/frontend/build
+COPY --from=frontend-builder /app/frontend/build /dist
 
 EXPOSE 8080
 
-ENV FRONTEND_DIR=/app/frontend/build
+ENV FRONTEND_DIR=/dist
 ENV JWT_PRIVATE_KEY_PATH=/app/keys/private.pem
 ENV JWT_PUBLIC_KEY_PATH=/app/keys/public.pem
 
