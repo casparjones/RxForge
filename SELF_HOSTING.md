@@ -86,9 +86,38 @@ demand – it only needs admin credentials, no manual setup.
 
 ## 4. Bring it up
 
+### docker-compose
+
 ```bash
 docker compose up -d --build
 docker compose logs -f rxforge
+```
+
+### CapRover
+
+Deploy via the CapRover dashboard or CLI. After creating the app, configure
+the following before the first deploy:
+
+**Persistent Directories** (App Config → Persistent Directories):
+
+| Path in container | Notes |
+| --- | --- |
+| `/app/keys` | RSA keypair for JWT signing. Auto-generated on first start — must be persistent so keys survive redeploys. |
+
+> `VOLUME` in a Dockerfile does **not** provision storage automatically in
+> CapRover. You must add `/app/keys` as a Persistent Directory in the app
+> settings. Without it, a new keypair is generated on every redeploy and all
+> existing JWTs are immediately invalidated.
+
+**Environment variables** — set these in App Config → Environmental Variables:
+
+```
+DATABASE_URL=postgresql://...
+COUCHDB_URL=http://...
+COUCHDB_USER=admin
+COUCHDB_PASSWORD=...
+JWT_PRIVATE_KEY_PATH=/app/keys/private.pem
+JWT_PUBLIC_KEY_PATH=/app/keys/public.pem
 ```
 
 The container exposes:

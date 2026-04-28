@@ -35,11 +35,6 @@ FROM gcr.io/distroless/cc-debian12
 COPY --from=backend-builder /app/target/release/rxforge-backend /rxforge
 COPY --from=frontend-builder /app/frontend/build /app/frontend/build
 
-# Keys directory — mount a persistent volume here so generated keys survive
-# container restarts. The server auto-generates an RSA keypair on first start
-# if no keys are found.
-VOLUME ["/app/keys"]
-
 EXPOSE 8080
 
 ENV FRONTEND_DIR=/app/frontend/build
