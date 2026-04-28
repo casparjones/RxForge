@@ -1,6 +1,6 @@
 use axum::{
     extract::{Path, Query, State},
-    routing::{delete, get, put},
+    routing::get,
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 use crate::{
     error::{AppError, AppResult},
+    linker::normalized_db_name,
     middleware::auth::AuthUser,
     state::AppState,
 };
@@ -40,20 +41,27 @@ pub struct ListResponse {
 }
 
 async fn resolve_app_db(state: &AppState, app_id: Uuid, user_id: Uuid) -> AppResult<String> {
-    let row: Option<(String,)> =
-        sqlx::query_as("SELECT db_scope FROM apps WHERE id = $1 AND owner_id = $2")
-            .bind(app_id)
-            .bind(user_id)
-            .fetch_optional(&state.db)
-            .await?;
+    let row: Option<(String, String, String)> = sqlx::query_as(
+        "SELECT a.name, a.db_scope, COALESCE(u.email, '')
+         FROM apps a
+         LEFT JOIN users u ON u.id = a.owner_id
+         WHERE a.id = $1 AND a.owner_id = $2",
+    )
+    .bind(app_id)
+    .bind(user_id)
+    .fetch_optional(&state.db)
+    .await?;
 
-    let (db_scope,) = row.ok_or_else(|| AppError::NotFound("App not found".to_string()))?;
+    let (app_name, db_scope, email) =
+        row.ok_or_else(|| AppError::NotFound("App not found".to_string()))?;
 
-    Ok(if db_scope == "shared" {
-        format!("app_{}", app_id)
-    } else {
-        format!("app_{}_user_{}", app_id, user_id)
-    })
+    Ok(normalized_db_name(
+        &app_name,
+        &app_id,
+        &db_scope,
+        (!email.is_empty()).then_some(email.as_str()),
+        &user_id,
+    ))
 }
 
 pub async fn list_docs(
@@ -70,10 +78,10 @@ pub async fn list_docs(
     let page = query.page.unwrap_or(1).max(1);
     let skip = ((page - 1) * per_page as u64) as u32;
 
-    state.couchdb.provision_db(&db_name).await
+    state.linker.ensure_db(&db_name).await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
 
-    let (docs, total) = state.couchdb.list_docs(&db_name, per_page, skip).await
+    let (docs, total) = state.linker.list_docs(&db_name, per_page, skip).await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
 
     let pages = if total == 0 { 1 } else { (total + per_page as u64 - 1) / per_page as u64 };
@@ -90,7 +98,7 @@ pub async fn get_doc(
         .map_err(|_| AppError::Internal(anyhow::anyhow!("Invalid user ID")))?;
     let db_name = resolve_app_db(&state, app_id, user_id).await?;
 
-    let doc = state.couchdb.get_doc(&db_name, &doc_id).await
+    let doc = state.linker.get_doc(&db_name, &doc_id).await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?
         .ok_or_else(|| AppError::NotFound("Document not found".to_string()))?;
 
@@ -107,7 +115,7 @@ pub async fn put_doc(
         .map_err(|_| AppError::Internal(anyhow::anyhow!("Invalid user ID")))?;
     let db_name = resolve_app_db(&state, app_id, user_id).await?;
 
-    let result = state.couchdb.put_doc(&db_name, &doc_id, body).await
+    let result = state.linker.put_doc(&db_name, &doc_id, body).await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
 
     Ok(Json(result))
@@ -123,7 +131,7 @@ pub async fn delete_doc(
         .map_err(|_| AppError::Internal(anyhow::anyhow!("Invalid user ID")))?;
     let db_name = resolve_app_db(&state, app_id, user_id).await?;
 
-    state.couchdb.delete_doc(&db_name, &doc_id, &query.rev).await
+    state.linker.delete_doc(&db_name, &doc_id, &query.rev).await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
 
     Ok(Json(serde_json::json!({ "ok": true })))
@@ -138,7 +146,7 @@ pub async fn delete_all(
         .map_err(|_| AppError::Internal(anyhow::anyhow!("Invalid user ID")))?;
     let db_name = resolve_app_db(&state, app_id, user_id).await?;
 
-    let deleted = state.couchdb.delete_all_docs(&db_name).await
+    let deleted = state.linker.delete_all_docs(&db_name).await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
 
     Ok(Json(serde_json::json!({ "deleted": deleted })))

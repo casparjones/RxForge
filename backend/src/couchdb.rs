@@ -140,12 +140,11 @@ impl CouchDbClient {
                     .iter()
                     .filter_map(|row| row.get("doc").cloned())
                     .filter(|doc| {
-                        // Filter out design documents and deleted docs
+                        // Filter out CouchDB design documents only; keep _deleted tombstones
                         doc.get("_id")
                             .and_then(|id| id.as_str())
                             .map(|id| !id.starts_with('_'))
                             .unwrap_or(false)
-                            && doc.get("_deleted").is_none()
                     })
                     .collect()
             })
@@ -204,7 +203,7 @@ impl CouchDbClient {
     /// line is a change record that we reshape into the same
     /// `{ documents, checkpoint }` envelope used by the pull endpoint, then
     /// emit as a proper SSE event so the browser's EventSource can fire it.
-    pub async fn changes_stream(
+    pub fn changes_stream(
         &self,
         db_name: String,
     ) -> Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send>> {
@@ -262,10 +261,9 @@ impl CouchDbClient {
                                         let seq = record.get("seq").cloned()
                                             .unwrap_or(Value::String("0".to_string()));
 
-                                        // Skip deleted docs and design docs
+                                        // Skip only CouchDB design docs; include _deleted tombstones
                                         let skip = doc.as_ref().map(|d| {
-                                            d.get("_deleted").is_some()
-                                            || d.get("_id")
+                                            d.get("_id")
                                                 .and_then(|id| id.as_str())
                                                 .map(|id| id.starts_with('_'))
                                                 .unwrap_or(false)

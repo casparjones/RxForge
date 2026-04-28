@@ -2,6 +2,7 @@ use anyhow::Context;
 use axum::middleware as axum_middleware;
 use sqlx::postgres::PgPoolOptions;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tower_http::{
     cors::{Any, CorsLayer},
     services::{ServeDir, ServeFile},
@@ -10,7 +11,13 @@ use tower_http::{
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use rxforge_backend::{
-    analytics, config::Config, couchdb::CouchDbClient, jwt::JwtManager, routes, state::AppState,
+    analytics,
+    config::Config,
+    couchdb::CouchDbClient,
+    jwt::JwtManager,
+    linker::{couchdb::CouchDbLinker, mongodb::MongoDbLinker, Linker},
+    routes,
+    state::AppState,
 };
 
 #[tokio::main]
@@ -49,12 +56,19 @@ async fn main() -> anyhow::Result<()> {
         JwtManager::load_or_generate(&config.jwt_private_key_path, &config.jwt_public_key_path)
             .context("Failed to initialize JWT manager")?;
 
-    // CouchDB client
-    let couchdb = CouchDbClient::new(
-        &config.couchdb_url,
-        &config.couchdb_user,
-        &config.couchdb_password,
-    );
+    let linker: Arc<dyn Linker + Send + Sync> = if let Some(url) = &config.mongodb_url {
+        Arc::new(
+            MongoDbLinker::new(url, &config.mongodb_db)
+                .await
+                .context("Failed to initialize MongoDB linker")?,
+        )
+    } else {
+        Arc::new(CouchDbLinker(CouchDbClient::new(
+            &config.couchdb_url,
+            &config.couchdb_user,
+            &config.couchdb_password,
+        )))
+    };
 
     // Start batched analytics writer (collects events, flushes every 5 s or 200 events)
     let analytics = analytics::start_analytics_writer(db.clone());
@@ -63,7 +77,7 @@ async fn main() -> anyhow::Result<()> {
         db: db.clone(),
         config: config.clone(),
         jwt,
-        couchdb,
+        linker,
         analytics: analytics.clone(),
     };
 

@@ -20,7 +20,7 @@
 	let loading = $state(false);
 	let listError = $state('');
 
-	// Document detail state
+	// Selected document
 	let selectedDoc = $state<any | null>(null);
 	let editJson = $state('');
 	let saving = $state(false);
@@ -40,10 +40,7 @@
 		loading = true; listError = '';
 		try {
 			const res = await api.apps.db.list(app.id, p, PER_PAGE);
-			docs = res.docs;
-			total = res.total;
-			page = res.page;
-			pages = res.pages;
+			docs = res.docs; total = res.total; page = res.page; pages = res.pages;
 		} catch (e: any) {
 			listError = e.message;
 		} finally {
@@ -57,11 +54,6 @@
 		saveError = '';
 	}
 
-	function backToList() {
-		selectedDoc = null;
-		saveError = '';
-	}
-
 	async function saveDoc() {
 		if (!selectedDoc) return;
 		saving = true; saveError = '';
@@ -69,7 +61,6 @@
 			let parsed: any;
 			try { parsed = JSON.parse(editJson); } catch { saveError = 'Ungültiges JSON.'; saving = false; return; }
 			const res = await api.apps.db.updateDoc(app.id, selectedDoc._id, parsed);
-			// Update local list
 			const updated = { ...parsed, _rev: res.rev ?? parsed._rev };
 			selectedDoc = updated;
 			editJson = JSON.stringify(updated, null, 2);
@@ -87,7 +78,7 @@
 			await api.apps.db.deleteDoc(app.id, doc._id, doc._rev);
 			docs = docs.filter(d => d._id !== doc._id);
 			total = Math.max(0, total - 1);
-			if (selectedDoc?._id === doc._id) backToList();
+			if (selectedDoc?._id === doc._id) selectedDoc = null;
 			toast.success('Dokument gelöscht.');
 		} catch (e: any) {
 			toast.error('Fehler: ' + e.message);
@@ -97,8 +88,7 @@
 	async function deleteAll() {
 		try {
 			const res = await api.apps.db.deleteAll(app.id);
-			docs = []; total = 0; page = 1; pages = 1;
-			if (selectedDoc) backToList();
+			docs = []; total = 0; page = 1; pages = 1; selectedDoc = null;
 			toast.success(`${res.deleted} Dokument(e) gelöscht.`);
 		} catch (e: any) {
 			toast.error('Fehler: ' + e.message);
@@ -107,50 +97,46 @@
 
 	function preview(doc: any): string {
 		const skip = new Set(['_id', '_rev', '_deleted']);
-		const entries = Object.entries(doc).filter(([k]) => !skip.has(k)).slice(0, 3);
+		const entries = Object.entries(doc).filter(([k]) => !skip.has(k)).slice(0, 2);
 		if (!entries.length) return '—';
 		return entries.map(([k, v]) => {
 			const val = typeof v === 'object' ? JSON.stringify(v) : String(v);
-			return `${k}: ${val.length > 30 ? val.slice(0, 30) + '…' : val}`;
+			return `${k}: ${val.length > 24 ? val.slice(0, 24) + '…' : val}`;
 		}).join('  ·  ');
 	}
 
-	// Load first page on mount
 	$effect(() => { loadPage(1); });
 </script>
 
 <!-- Full-screen overlay -->
-<div class="fixed inset-0 z-50 flex flex-col" style="background:var(--c-bg, #05050f);">
+<div class="fixed inset-0 z-50 flex flex-col" style="background:var(--c-bg,#05050f);">
+
+	<!-- Fixed close button -->
+	<button
+		onclick={onclose}
+		class="fixed top-3 right-4 z-10 flex items-center justify-center w-8 h-8 rounded-lg transition"
+		style="color:var(--c-muted); background:transparent;"
+		onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.color='var(--c-text)'; (e.currentTarget as HTMLElement).style.background='var(--c-surface)'; }}
+		onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.color='var(--c-muted)'; (e.currentTarget as HTMLElement).style.background='transparent'; }}
+		aria-label="Schließen"
+	>
+		<svg class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+	</button>
 
 	<!-- Top bar -->
-	<div class="flex items-center gap-3 px-6 py-4 shrink-0" style="border-bottom:1px solid var(--c-border); background:var(--c-surface);">
-		{#if selectedDoc}
-			<button
-				onclick={backToList}
-				class="flex items-center gap-1.5 text-sm transition"
-				style="color:var(--c-muted);"
-				onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.color='var(--c-text)'; }}
-				onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.color='var(--c-muted)'; }}
-			>
-				← Zurück
-			</button>
-			<span style="color:var(--c-border);">|</span>
-			<span class="text-sm font-mono truncate" style="color:var(--c-muted); max-width:300px;">{selectedDoc._id}</span>
-		{:else}
-			<span class="text-sm font-semibold" style="color:var(--c-text);">
-				{app.name}
-				<span class="font-normal" style="color:var(--c-muted);"> — Datenbank</span>
-			</span>
-			{#if !loading}
-				<span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(124,124,255,.12); color:#7c7cff;">{total} Dokumente</span>
-			{/if}
+	<div class="flex items-center gap-3 px-5 py-3 shrink-0" style="border-bottom:1px solid var(--c-border); background:var(--c-surface);">
+		<span class="text-sm font-semibold" style="color:var(--c-text);">{app.name}</span>
+		<span style="color:var(--c-border);">/</span>
+		<span class="text-sm" style="color:var(--c-muted);">Datenbank</span>
+		{#if !loading}
+			<span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(124,124,255,.12); color:#7c7cff;">{total} Dokumente</span>
 		{/if}
 		<div class="ml-auto flex items-center gap-2">
-			{#if !selectedDoc && docs.length > 0}
+			{#if docs.length > 0}
 				<button
 					onclick={() => openConfirm(
-						'Alle Dokumente löschen',
-						`Alle ${total} Dokumente in "${app.name}" unwiderruflich löschen?`,
+						'Collection leeren',
+						`Alle ${total} Dokumente in „${app.name}" unwiderruflich löschen?`,
 						() => { confirmOpen = false; deleteAll(); }
 					)}
 					class="text-sm font-medium px-3 py-1.5 rounded-lg transition"
@@ -159,136 +145,129 @@
 					onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}
 				>Collection leeren</button>
 			{/if}
-			{#if selectedDoc}
-				<button
-					onclick={() => openConfirm(
-						'Dokument löschen',
-						`"${selectedDoc._id}" löschen?`,
-						() => { confirmOpen = false; deleteDoc(selectedDoc); }
-					)}
-					class="text-sm font-medium px-3 py-1.5 rounded-lg transition"
-					style="color:#f87171; border:1px solid rgba(248,113,113,.25); background:transparent;"
-					onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(248,113,113,.08)'; }}
-					onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}
-				>Dokument löschen</button>
-				<button
-					onclick={saveDoc}
-					disabled={saving}
-					class="text-sm font-semibold px-4 py-1.5 rounded-lg disabled:opacity-60 transition"
-					style="background:#7c7cff; color:#05050f;"
-					onmouseenter={(e) => { if (!saving) (e.currentTarget as HTMLElement).style.background='#9090ff'; }}
-					onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#7c7cff'; }}
-				>{saving ? 'Speichern…' : 'Speichern'}</button>
-			{/if}
-			<button
-				onclick={onclose}
-				class="text-sm font-medium px-3 py-1.5 rounded-lg transition"
-				style="color:var(--c-muted); border:1px solid var(--c-border); background:transparent;"
-				onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.color='var(--c-text)'; }}
-				onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.color='var(--c-muted)'; }}
-			>Schließen</button>
 		</div>
 	</div>
 
-	<!-- Content -->
-	<div class="flex-1 overflow-auto p-6">
+	<!-- Split pane -->
+	<div class="flex flex-1 overflow-hidden">
 
-		{#if selectedDoc}
-			<!-- ── Document editor ── -->
-			<div style="max-width:860px; margin:0 auto;">
-				{#if saveError}
-					<p class="mb-3 text-sm px-4 py-2 rounded-lg" style="color:#f87171; background:rgba(248,113,113,.08); border:1px solid rgba(248,113,113,.2);">{saveError}</p>
+		<!-- ── Left: document list ── -->
+		<div class="flex flex-col overflow-hidden shrink-0" style="width:360px; border-right:1px solid var(--c-border);">
+
+			<!-- List body -->
+			<div class="flex-1 overflow-y-auto">
+				{#if loading}
+					<div class="flex justify-center py-16">
+						<div class="w-5 h-5 rounded-full border-2 animate-spin" style="border-color:#7c7cff; border-top-color:transparent;"></div>
+					</div>
+				{:else if listError}
+					<div class="p-6 text-center">
+						<p class="text-sm mb-2" style="color:#f87171;">{listError}</p>
+						<button onclick={() => loadPage(page)} class="text-xs" style="color:#7c7cff;">Wiederholen</button>
+					</div>
+				{:else if docs.length === 0}
+					<div class="p-8 text-center">
+						<p class="text-sm" style="color:var(--c-muted);">Keine Dokumente.</p>
+						<p class="text-xs mt-1 opacity-60" style="color:var(--c-muted);">Daten erscheinen nach dem ersten Sync.</p>
+					</div>
+				{:else}
+					{#each docs as doc (doc._id)}
+						<div
+							role="button"
+							tabindex="0"
+							onclick={() => selectDoc(doc)}
+							onkeydown={(e) => e.key === 'Enter' && selectDoc(doc)}
+							class="flex items-center gap-2 px-4 py-3 cursor-pointer"
+							style="border-bottom:1px solid var(--c-border); {selectedDoc?._id === doc._id ? 'background:rgba(124,124,255,.08); border-left:2px solid #7c7cff;' : 'border-left:2px solid transparent;'}"
+							onmouseenter={(e) => { if (selectedDoc?._id !== doc._id) (e.currentTarget as HTMLElement).style.background='var(--c-surface)'; }}
+							onmouseleave={(e) => { if (selectedDoc?._id !== doc._id) (e.currentTarget as HTMLElement).style.background='transparent'; }}
+						>
+							<div class="flex-1 min-w-0">
+								<p class="text-xs font-mono truncate" style="color:{selectedDoc?._id === doc._id ? '#7c7cff' : 'var(--c-text)'};">{doc._id}</p>
+								<p class="text-xs truncate mt-0.5" style="color:var(--c-muted);">{preview(doc)}</p>
+							</div>
+							<button
+								onclick={(e) => { e.stopPropagation(); openConfirm('Dokument löschen', `„${doc._id}" löschen?`, () => { confirmOpen = false; deleteDoc(doc); }); }}
+								class="shrink-0 text-xs px-1.5 py-0.5 rounded opacity-0 transition"
+								style="color:#f87171; border:1px solid rgba(248,113,113,.3);"
+								onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.opacity='1'; (e.currentTarget as HTMLElement).style.background='rgba(248,113,113,.1)'; }}
+								onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.opacity='0'; (e.currentTarget as HTMLElement).style.background='transparent'; }}
+							>✕</button>
+						</div>
+					{/each}
 				{/if}
-				<CodeEditor
-					value={editJson}
-					onchange={(v) => { editJson = v; }}
-					minHeight="calc(100vh - 200px)"
-				/>
 			</div>
 
-		{:else}
-			<!-- ── Document list ── -->
-			{#if loading}
-				<div class="flex justify-center py-20">
-					<div class="w-6 h-6 rounded-full border-2 animate-spin" style="border-color:#7c7cff; border-top-color:transparent;"></div>
-				</div>
-			{:else if listError}
-				<div class="text-center py-16">
-					<p style="color:#f87171;">{listError}</p>
-					<button onclick={() => loadPage(page)} class="mt-3 text-sm" style="color:#7c7cff;">Erneut versuchen</button>
-				</div>
-			{:else if docs.length === 0}
-				<div class="text-center py-20">
-					<p style="color:var(--c-muted);">Keine Dokumente vorhanden.</p>
-					<p class="text-sm mt-1" style="color:var(--c-muted); opacity:.6;">Daten erscheinen hier sobald Sync-Daten eintreffen.</p>
-				</div>
-			{:else}
-				<div style="max-width:1100px; margin:0 auto;">
-					<table style="width:100%; border-collapse:collapse; font-size:13px;">
-						<thead>
-							<tr style="border-bottom:1px solid var(--c-border);">
-								<th class="text-left py-2 px-3 text-xs font-semibold uppercase tracking-wide" style="color:var(--c-muted); width:35%;">ID</th>
-								<th class="text-left py-2 px-3 text-xs font-semibold uppercase tracking-wide" style="color:var(--c-muted);">Vorschau</th>
-								<th class="py-2 px-3" style="width:80px;"></th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each docs as doc (doc._id)}
-								<tr
-									style="border-bottom:1px solid var(--c-border); cursor:pointer; transition:background .12s;"
-									onclick={() => selectDoc(doc)}
-									onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='var(--c-surface)'; }}
-									onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}
-								>
-									<td class="py-3 px-3 font-mono" style="color:#7c7cff; max-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-										{doc._id}
-									</td>
-									<td class="py-3 px-3" style="color:var(--c-muted); max-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-										{preview(doc)}
-									</td>
-									<td class="py-3 px-3 text-right" onclick={(e) => e.stopPropagation()}>
-										<button
-											onclick={() => openConfirm(
-												'Dokument löschen',
-												`"${doc._id}" löschen?`,
-												() => { confirmOpen = false; deleteDoc(doc); }
-											)}
-											class="text-xs px-2 py-1 rounded transition"
-											style="color:#f87171; border:1px solid rgba(248,113,113,.2);"
-											onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(248,113,113,.1)'; }}
-											onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}
-										>Löschen</button>
-									</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-
-					<!-- Pagination -->
-					{#if pages > 1}
-						<div class="flex items-center justify-center gap-2 mt-6">
-							<button
-								onclick={() => loadPage(page - 1)}
-								disabled={page <= 1}
-								class="px-3 py-1.5 text-sm rounded-lg disabled:opacity-40 transition"
-								style="border:1px solid var(--c-border); color:var(--c-muted);"
-								onmouseenter={(e) => { if (page > 1) (e.currentTarget as HTMLElement).style.color='var(--c-text)'; }}
-								onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.color='var(--c-muted)'; }}
-							>← Zurück</button>
-							<span class="text-sm" style="color:var(--c-muted);">Seite {page} / {pages}</span>
-							<button
-								onclick={() => loadPage(page + 1)}
-								disabled={page >= pages}
-								class="px-3 py-1.5 text-sm rounded-lg disabled:opacity-40 transition"
-								style="border:1px solid var(--c-border); color:var(--c-muted);"
-								onmouseenter={(e) => { if (page < pages) (e.currentTarget as HTMLElement).style.color='var(--c-text)'; }}
-								onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.color='var(--c-muted)'; }}
-							>Weiter →</button>
-						</div>
-					{/if}
+			<!-- Pagination -->
+			{#if pages > 1}
+				<div class="flex items-center justify-between px-4 py-3 shrink-0" style="border-top:1px solid var(--c-border);">
+					<button
+						onclick={() => loadPage(page - 1)}
+						disabled={page <= 1}
+						class="text-xs px-2 py-1 rounded disabled:opacity-40 transition"
+						style="border:1px solid var(--c-border); color:var(--c-muted);"
+					>← Zurück</button>
+					<span class="text-xs" style="color:var(--c-muted);">{page} / {pages}</span>
+					<button
+						onclick={() => loadPage(page + 1)}
+						disabled={page >= pages}
+						class="text-xs px-2 py-1 rounded disabled:opacity-40 transition"
+						style="border:1px solid var(--c-border); color:var(--c-muted);"
+					>Weiter →</button>
 				</div>
 			{/if}
-		{/if}
+		</div>
+
+		<!-- ── Right: editor ── -->
+		<div class="flex-1 flex flex-col overflow-hidden">
+			{#if selectedDoc}
+				<!-- Editor toolbar -->
+				<div class="flex items-center gap-3 px-5 py-3 shrink-0" style="border-bottom:1px solid var(--c-border); background:var(--c-surface);">
+					<span class="text-xs font-mono truncate flex-1" style="color:var(--c-muted);">{selectedDoc._id}</span>
+					<button
+						onclick={() => openConfirm('Dokument löschen', `„${selectedDoc._id}" löschen?`, () => { confirmOpen = false; deleteDoc(selectedDoc); })}
+						class="text-sm font-medium px-3 py-1 rounded-lg transition"
+						style="color:#f87171; border:1px solid rgba(248,113,113,.25);"
+						onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(248,113,113,.08)'; }}
+						onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}
+					>Löschen</button>
+					<button
+						onclick={saveDoc}
+						disabled={saving}
+						class="text-sm font-semibold px-4 py-1 rounded-lg disabled:opacity-60 transition"
+						style="background:#7c7cff; color:#05050f;"
+						onmouseenter={(e) => { if (!saving) (e.currentTarget as HTMLElement).style.background='#9090ff'; }}
+						onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#7c7cff'; }}
+					>{saving ? 'Speichern…' : 'Speichern'}</button>
+				</div>
+
+				{#if saveError}
+					<div class="px-5 pt-3 shrink-0">
+						<p class="text-sm px-3 py-2 rounded-lg" style="color:#f87171; background:rgba(248,113,113,.08); border:1px solid rgba(248,113,113,.2);">{saveError}</p>
+					</div>
+				{/if}
+
+				<!-- Editor fills remaining height -->
+				<div class="flex-1 overflow-hidden p-4">
+					<div style="height:100%; border:1px solid var(--c-border); border-radius:8px; overflow:hidden;">
+						<CodeEditor
+							value={editJson}
+							onchange={(v) => { editJson = v; saveError = ''; }}
+							minHeight="100%"
+						/>
+					</div>
+				</div>
+
+			{:else}
+				<!-- Empty state -->
+				<div class="flex-1 flex items-center justify-center" style="color:var(--c-muted);">
+					<div class="text-center">
+						<svg class="w-10 h-10 mx-auto mb-3 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+						<p class="text-sm">Dokument auswählen</p>
+					</div>
+				</div>
+			{/if}
+		</div>
 	</div>
 </div>
 

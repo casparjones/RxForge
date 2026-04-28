@@ -7,6 +7,8 @@ pub struct Config {
     pub couchdb_url: String,
     pub couchdb_user: String,
     pub couchdb_password: String,
+    pub mongodb_url: Option<String>,
+    pub mongodb_db: String,
     pub jwt_private_key_path: String,
     pub jwt_public_key_path: String,
     pub server_port: u16,
@@ -24,6 +26,8 @@ impl Config {
             couchdb_url: env::var("COUCHDB_URL").context("COUCHDB_URL not set")?,
             couchdb_user: env::var("COUCHDB_USER").context("COUCHDB_USER not set")?,
             couchdb_password: env::var("COUCHDB_PASSWORD").context("COUCHDB_PASSWORD not set")?,
+            mongodb_url: env::var("MONGODB_URL").ok(),
+            mongodb_db: env::var("MONGODB_DB").unwrap_or_else(|_| "rxforge".to_string()),
             jwt_private_key_path: env::var("JWT_PRIVATE_KEY_PATH")
                 .unwrap_or_else(|_| "./keys/private.pem".to_string()),
             jwt_public_key_path: env::var("JWT_PUBLIC_KEY_PATH")

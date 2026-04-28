@@ -11,6 +11,7 @@ use uuid::Uuid;
 
 use crate::{
     error::{AppError, AppResult},
+    linker::normalized_db_name,
     routes::tokens::hash_app_token,
     state::AppState,
 };
@@ -203,48 +204,76 @@ pub struct PullResponse {
     pub checkpoint: serde_json::Value,
 }
 
+/// One row in an RxDB push request.
+#[derive(Debug, Deserialize)]
+pub struct PushRow {
+    /// What the client believes the server currently holds (null = new document).
+    pub assumed_master_state: Option<serde_json::Value>,
+    /// The document state the client wants to write.
+    pub new_document_state: serde_json::Value,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct PushRequest {
-    pub documents: Vec<serde_json::Value>,
+    pub rows: Vec<PushRow>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct PushResponse {
-    pub written: usize,
-    pub conflicts: Vec<String>,
+    /// Full server documents for rows where the assumed state didn't match.
+    pub conflicts: Vec<serde_json::Value>,
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/// Strip storage-internal fields (`_id`, `_rev`, `_seq`) from a document.
+/// Keeps `_deleted` because RxDB uses it as the soft-delete marker.
+fn strip_internal(doc: &serde_json::Value) -> serde_json::Value {
+    let mut d = doc.clone();
+    if let Some(obj) = d.as_object_mut() {
+        obj.remove("_id");
+        obj.remove("_rev");
+        obj.remove("_seq");
+    }
+    d
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
-/// Ensure the CouchDB database exists, creating it if necessary.
-/// Idempotent: a 412 (already exists) from CouchDB is treated as success.
 async fn ensure_db(state: &AppState, db_name: &str) -> AppResult<()> {
     state
-        .couchdb
-        .provision_db(db_name)
+        .linker
+        .ensure_db(db_name)
         .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("CouchDB provision error: {e}")))
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("storage ensure error: {e}")))
 }
 
-/// Resolve the CouchDB database name for the given app + authenticated user.
-/// - db_scope = "shared"  → app_{app_id}          (all users share one DB)
-/// - db_scope = "isolated" → app_{app_id}_user_{owner_id} (per-user DB)
 async fn resolve_db_name(
     state: &AppState,
     app_id: Uuid,
     owner_id: Uuid,
 ) -> AppResult<String> {
-    let row: Option<(String,)> =
-        sqlx::query_as("SELECT db_scope FROM apps WHERE id = $1")
-            .bind(app_id)
-            .fetch_optional(&state.db)
-            .await?;
-    let db_scope = row.map(|(s,)| s).unwrap_or_else(|| "isolated".to_string());
-    Ok(if db_scope == "shared" {
-        format!("app_{}", app_id)
-    } else {
-        format!("app_{}_user_{}", app_id, owner_id)
-    })
+    let row: Option<(String, String, String)> = sqlx::query_as(
+        "SELECT a.name, a.db_scope, COALESCE(u.email, '')
+         FROM apps a
+         LEFT JOIN users u ON u.id = a.owner_id
+         WHERE a.id = $1 AND a.owner_id = $2",
+    )
+    .bind(app_id)
+    .bind(owner_id)
+    .fetch_optional(&state.db)
+    .await?;
+
+    let (app_name, db_scope, email) =
+        row.ok_or_else(|| AppError::NotFound("App not found".to_string()))?;
+
+    Ok(normalized_db_name(
+        &app_name,
+        &app_id,
+        &db_scope,
+        (!email.is_empty()).then_some(email.as_str()),
+        &owner_id,
+    ))
 }
 
 pub async fn pull(
@@ -260,13 +289,13 @@ pub async fn pull(
     let checkpoint = query.checkpoint.as_deref().filter(|s| !s.is_empty());
 
     let changes = state
-        .couchdb
+        .linker
         .get_changes(&db_name, checkpoint, limit)
         .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("CouchDB error: {e}")))?;
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("storage error: {e}")))?;
 
     Ok(Json(PullResponse {
-        documents: changes.documents,
+        documents: changes.documents.iter().map(strip_internal).collect(),
         checkpoint: changes.checkpoint,
     }))
 }
@@ -277,7 +306,6 @@ pub async fn push(
     Path(app_id): Path<Uuid>,
     Json(req): Json<PushRequest>,
 ) -> AppResult<Json<PushResponse>> {
-    // Raw app tokens are read-only; the client must exchange for a JWT first.
     if matches!(auth, SyncAuth::RawToken { .. }) {
         return Err(AppError::Forbidden(
             "Write access requires a JWT. Exchange your token at POST /api/v1/auth/token/exchange"
@@ -289,16 +317,55 @@ pub async fn push(
     let db_name = resolve_db_name(&state, app_id, owner_id).await?;
     ensure_db(&state, &db_name).await?;
 
-    let result = state
-        .couchdb
-        .bulk_docs(&db_name, req.documents)
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("CouchDB error: {e}")))?;
+    let mut conflicts: Vec<serde_json::Value> = Vec::new();
+    let mut docs_to_write: Vec<serde_json::Value> = Vec::new();
 
-    Ok(Json(PushResponse {
-        written: result.written,
-        conflicts: result.conflicts,
-    }))
+    for row in req.rows {
+        let doc_id = row.new_document_state
+            .get("id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| AppError::BadRequest("Document missing 'id' field".to_string()))?
+            .to_string();
+
+        // Fetch current server state for conflict detection
+        let current = state.linker.get_doc(&db_name, &doc_id).await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("storage read error: {e}")))?;
+        let current_clean = current.as_ref().map(strip_internal);
+
+        // RxDB conflict semantics: assumed_master_state must equal actual server state
+        let has_conflict = match (&row.assumed_master_state, &current_clean) {
+            (None, None)             => false, // new doc, server empty → OK
+            (None, Some(_))          => true,  // client says new, server has doc → conflict
+            (Some(_), None)          => false, // client updating, server gone → allow
+            (Some(assumed), Some(actual)) => assumed != actual,
+        };
+
+        if has_conflict {
+            if let Some(master) = current_clean {
+                conflicts.push(master);
+            }
+            continue;
+        }
+
+        // Prepare doc for the storage backend: add _id = doc.id, carry current _rev for CouchDB
+        let mut stored = row.new_document_state.clone();
+        if let Some(obj) = stored.as_object_mut() {
+            obj.insert("_id".to_string(), serde_json::Value::String(doc_id.clone()));
+            if let Some(cur) = &current {
+                if let Some(rev) = cur.get("_rev") {
+                    obj.insert("_rev".to_string(), rev.clone());
+                }
+            }
+        }
+        docs_to_write.push(stored);
+    }
+
+    if !docs_to_write.is_empty() {
+        state.linker.bulk_docs(&db_name, docs_to_write).await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("storage write error: {e}")))?;
+    }
+
+    Ok(Json(PushResponse { conflicts }))
 }
 
 pub async fn stream(
@@ -309,7 +376,7 @@ pub async fn stream(
     let owner_id = resolve_owner(&state, &auth, app_id).await?;
     let db_name = resolve_db_name(&state, app_id, owner_id).await?;
     ensure_db(&state, &db_name).await?;
-    let byte_stream = state.couchdb.changes_stream(db_name).await;
+    let byte_stream = state.linker.changes_stream(db_name);
 
     let mut headers = HeaderMap::new();
     headers.insert("Content-Type", HeaderValue::from_static("text/event-stream"));

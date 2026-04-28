@@ -3,7 +3,7 @@
 	import { api } from '$lib/api';
 	import { toast } from '$lib/stores/toast';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
-	import AppEditModal from '$lib/components/AppEditModal.svelte';
+	import { goto } from '$app/navigation';
 	import DbBrowser from '$lib/components/DbBrowser.svelte';
 
 	let apps = $state<any[]>([]);
@@ -15,8 +15,6 @@
 	let newAppDbScope = $state<'isolated' | 'shared'>('isolated');
 	let creating = $state(false);
 
-	// Modal state
-	let editModalApp = $state<any | null>(null);
 	let browseApp = $state<any | null>(null);
 
 	// Expanded / edit state per app (kept for token section, no longer used for edit form)
@@ -217,61 +215,140 @@
 		const isToken = app.auth_type === 'token';
 
 		const authSection = isToken ? `\
-**Auth Type:** Public API Token (rxft_...)
+## Authentication
 
-**How authentication works:**
-- For read access (pull/stream): use the token directly as a Bearer token.
-- For write access (push): first exchange the token for a short-lived JWT (15 min):
+- **Auth Type:** Public API Token (rxft_...)
+- **Read access (pull/stream):** Use the \`rxft_…\` token directly as a Bearer token.
+- **Write access (push):** First exchange the token for a short-lived JWT (15 min):
+  \`\`\`
   POST ${base}/api/v1/auth/token/exchange
   Body: { "token": "<your_rxft_token>" }
   → Returns: { "access_token": "...", "token_type": "Bearer", "expires_in": 900 }
+  \`\`\`
+- **Auto-refresh:** Store the JWT and exchange a new one when < 2 minutes remain before expiry.` : `\
+## Authentication
 
-Implement an auto-refresh: store the JWT and exchange a new one before it expires (< 2 min remaining).` : `\
-**Auth Type:** OAuth 2.0 (Authorization Code Flow)
-
-**Client ID:** ${app.client_id}
-**Redirect URIs:** ${app.redirect_uris?.join(', ') || '(none configured)'}
-
-**OAuth endpoints:**
-- Authorize: POST ${base}/oauth/authorize
-- Token:     POST ${base}/oauth/token  (grant_type: authorization_code)
-- Revoke:    POST ${base}/oauth/revoke
-
-After the OAuth flow, use the returned access_token as a Bearer token for all sync requests.`;
+- **Auth Type:** OAuth 2.0 (Authorization Code Flow)
+- **Client ID:** \`${app.client_id}\`
+- **Redirect URIs:** ${app.redirect_uris?.join(', ') || '(none configured)'}
+- **OAuth endpoints:**
+  - Authorize: \`GET  ${base}/oauth/authorize\`
+  - Token:     \`POST ${base}/oauth/token\`  (grant_type: authorization_code)
+  - Revoke:    \`POST ${base}/oauth/revoke\`
+- After the OAuth flow, use the returned \`access_token\` as a Bearer token for all sync requests.`;
 
 		return `\
-I want to integrate RxDB with RxForge for local-first offline sync in my web app.
+# RxDB Integration with RxForge — Local-First Offline Sync
 
-**My RxForge app:**
-- Name: ${app.name}
-- App ID: ${appId}
-- RxForge base URL: ${base}
+I want to integrate RxDB with RxForge for local-first offline sync in my web app, using **RxDB's native generic Replication Protocol (v15+)** — NOT the legacy \`replicateCouchDB()\` plugin.
+
+## My RxForge App
+- **Name:** ${app.name}
+- **App ID:** ${appId}
+- **RxForge base URL:** ${base}
+- **Auth Type:** ${isToken ? 'Public API Token (rxft_...)' : 'OAuth 2.0'}
+
+## Critical Protocol Notes (READ FIRST)
+
+This integration uses **RxDB's native Replication Protocol**, where the server-side semantics differ significantly from CouchDB:
+
+1. **No CouchDB \`_rev\` hash-chains.** Documents do NOT carry a \`_rev\` field for optimistic locking. Conflict detection is done via \`assumedMasterState\` (see below).
+
+2. **Push uses \`assumedMasterState\` + \`newDocumentState\` rows.** Each push row is structured as:
+   \`\`\`ts
+   {
+     assumedMasterState: <Doc> | null,  // What the client thinks the server currently has
+     newDocumentState: <Doc>             // What the client wants to write
+   }
+   \`\`\`
+   The server compares \`assumedMasterState\` with its actual current state. If they differ, that's a conflict — the server returns its current document (the "real master state") in the conflicts array, and RxDB's local \`conflictHandler\` resolves it.
+
+3. **Checkpoints are opaque strings.** RxDB treats checkpoints as black boxes — pass them back to the server unchanged. The server decides their format (could be \`{updatedAt, id}\`, a sequence number, etc.).
+
+4. **Soft deletes via \`_deleted: true\` flag.** This is the one CouchDB convention RxDB kept. Deleted docs are normal documents with \`_deleted: true\`.
+
+5. **Document format is RxDB-native:** uses \`id\` (not \`_id\`), \`_deleted\`, and your custom fields. No \`_rev\`.
 
 ${authSection}
 
-**Sync API endpoints (all require Authorization: Bearer <token>):**
-- Pull:   GET  ${base}/api/v1/sync/${appId}/pull?checkpoint=<seq>&limit=100
-          Response: { documents: [...], checkpoint: "..." }
-- Push:   POST ${base}/api/v1/sync/${appId}/push
-          Body: { "documents": [...] }
-          Response: { written: N, conflicts: ["doc_id", ...] }
-- Stream: GET  ${base}/api/v1/sync/${appId}/stream  (SSE, continuous _changes feed)
+## Sync API Endpoints
 
-The documents follow CouchDB format (_id, _rev, _deleted).
-Checkpoints are CouchDB sequence values (opaque strings, pass back as-is).
+All require \`Authorization: Bearer <token>\`.
 
-**Task:**
-Please generate complete TypeScript code to:
-1. Initialize RxDB with a sample \`todos\` collection (fields: id, text, done, updatedAt)
-2. Implement a custom RxDB replication plugin for RxForge that:
-   - Pulls changes from the RxForge pull endpoint using checkpoint-based pagination
-   - Pushes local changes to the RxForge push endpoint in batches
-   - Subscribes to the SSE stream for live updates
-   - Handles conflicts (last-write-wins by updatedAt)
-3. Wire up the ${isToken ? 'token exchange (auto-refresh JWT before expiry)' : 'OAuth access_token'} as the Bearer token in every request
-4. Export a \`startSync(${isToken ? 'rxftToken' : 'accessToken'}: string)\` function that starts the replication
+### Pull
+\`\`\`
+GET ${base}/api/v1/sync/${appId}/pull?checkpoint=<opaque>&limit=100
+Response: { documents: [...], checkpoint: "<opaque>" }
+\`\`\`
+**Note:** Even when \`documents.length === 0\`, the server may return an advanced checkpoint (e.g., when documents were filtered out server-side). Always use the returned checkpoint.
 
-Use rxdb 15.x. Show the full working code.`;
+### Push
+\`\`\`
+POST ${base}/api/v1/sync/${appId}/push
+Body: {
+  "rows": [
+    {
+      "assumedMasterState": <Doc | null>,
+      "newDocumentState": <Doc>
+    },
+    ...
+  ]
+}
+Response: {
+  "conflicts": [<Doc>, ...]   // Server's current state for any rows where assumedMasterState didn't match
+}
+\`\`\`
+The \`conflicts\` array contains **full documents representing the server's actual current state**, NOT just IDs. RxDB needs these to feed its \`conflictHandler\`.
+
+### Stream (SSE)
+\`\`\`
+GET ${base}/api/v1/sync/${appId}/stream
+\`\`\`
+Server-Sent Events feed of live changes. Each event payload follows the pull-response shape: \`{ documents: [...], checkpoint: "..." }\`.
+
+## Task
+
+Generate complete TypeScript code that:
+
+1. **Initializes RxDB** with a sample \`todos\` collection. Schema fields:
+   - \`id\` (string, primary)
+   - \`text\` (string)
+   - \`done\` (boolean)
+   - \`updatedAt\` (number, unix ms)
+
+2. **Implements RxForge replication** as a function that wraps \`replicateRxCollection()\` from \`rxdb/plugins/replication\`. This is NOT a real RxDB plugin (no \`addRxPlugin()\`) — just a helper function that returns a \`RxReplicationState\`. The implementation must:
+   - **Pull handler:** Fetch from the pull endpoint with checkpoint-based pagination. Return \`{ documents, checkpoint }\`.
+   - **Push handler:** Send \`rows\` (with \`assumedMasterState\` + \`newDocumentState\`) to the push endpoint. Return the \`conflicts\` array as-is for RxDB to process.
+   - **Stream$ Observable:** Subscribe to the SSE endpoint and emit \`{ documents, checkpoint }\` events. Use \`RxJS Subject\` or similar. Reconnect on disconnect with exponential backoff.
+   - **conflictHandler:** Last-write-wins by \`updatedAt\`. If \`newDocumentState.updatedAt >= realMasterState.updatedAt\`, the local change wins; otherwise the server state wins.
+
+3. **Wires up${isToken ? ' token exchange' : ' OAuth token'} with auto-refresh:**${isToken ? `
+   - Maintain a JWT cache with expiry tracking.
+   - Before any write request, ensure JWT has > 2 min remaining; otherwise exchange a fresh one.
+   - Reads use the raw \`rxft_…\` token directly.` : `
+   - Accept the OAuth \`access_token\` as a parameter.
+   - Use it as the Bearer token for all requests.`}
+
+4. **Exports \`startSync(${isToken ? 'rxftToken' : 'accessToken'}: string)\`** that:
+   - Initializes the RxDB database and \`todos\` collection (idempotent — reuse if exists).
+   - Starts replication.
+   - Returns the \`RxReplicationState\` so the caller can \`.cancel()\`, observe errors, etc.
+
+## Requirements
+
+- Use **rxdb 15.x**
+- TypeScript strict mode compatible
+- Use \`fetch\` (no axios)
+- Use Dexie storage (\`getRxStorageDexie\`) for IndexedDB persistence
+- Show the **full working code** — no placeholders, no "// implement here" stubs
+- Include error handling for network failures (retries via RxDB's built-in retry logic where possible)
+- Include JSDoc comments on the exported \`startSync\` function and on the auth helper
+
+## Out of Scope
+
+- Do NOT use \`replicateCouchDB()\` from \`rxdb/plugins/replication-couchdb\` — RxForge speaks its own protocol.
+- Do NOT add \`_rev\` handling — there is no \`_rev\` in this protocol.
+- Do NOT generate UI code — pure sync layer only.`;
 	}
 
 	function openPromptModal(app: any) {
@@ -361,7 +438,7 @@ Use rxdb 15.x. Show the full working code.`;
 									Browse
 								</button>
 								<button
-									onclick={() => { editModalApp = app; }}
+									onclick={() => goto(`/dashboard/apps/${app.id}/edit`)}
 									class="text-sm font-medium px-3 py-1.5 rounded-lg transition"
 									style="color:#7c7cff; border:1px solid rgba(124,124,255,.25); background:rgba(124,124,255,.06);"
 									onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(124,124,255,.12)'; }}
@@ -831,15 +908,6 @@ Use rxdb 15.x. Show the full working code.`;
 	onConfirm={confirmAction}
 	onCancel={() => { confirmOpen = false; }}
 />
-
-{#if editModalApp}
-	<AppEditModal
-		app={editModalApp}
-		onclose={() => { editModalApp = null; }}
-		onsaved={(updated) => { apps = apps.map(a => a.id === updated.id ? { ...a, ...updated } : a); }}
-		ondeleted={() => { apps = apps.filter(a => a.id !== editModalApp?.id); editModalApp = null; }}
-	/>
-{/if}
 
 {#if browseApp}
 	<DbBrowser

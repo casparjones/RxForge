@@ -38,6 +38,7 @@ export const api = {
   },
   apps: {
     list: () => fetchApi<any[]>('/apps'),
+    get: (id: string) => fetchApi<any>(`/apps/${id}`),
     create: (data: { name: string; redirect_uris: string[]; auth_type?: string; db_scope?: string }) =>
       fetchApi<any>('/apps', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: { name?: string; redirect_uris?: string[]; auth_type?: string; db_scope?: string }) =>
