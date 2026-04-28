@@ -40,53 +40,32 @@ impl JwtManager {
     }
 
     fn generate_keys(private_key_path: &str, public_key_path: &str) -> Result<()> {
-        use std::process::Command;
+        use rsa::{
+            pkcs8::{EncodePrivateKey, EncodePublicKey, LineEnding},
+            RsaPrivateKey,
+        };
 
         let private_path = Path::new(private_key_path);
         if let Some(parent) = private_path.parent() {
             fs::create_dir_all(parent).context("Failed to create keys directory")?;
         }
 
-        // Generate RSA private key (PKCS8)
-        let output = Command::new("openssl")
-            .args([
-                "genpkey",
-                "-algorithm",
-                "RSA",
-                "-pkeyopt",
-                "rsa_keygen_bits:2048",
-                "-out",
-                private_key_path,
-            ])
-            .output()
-            .context("Failed to run openssl genpkey")?;
+        let mut rng = rand::thread_rng();
+        let private_key = RsaPrivateKey::new(&mut rng, 2048)
+            .context("Failed to generate RSA-2048 key")?;
 
-        if !output.status.success() {
-            anyhow::bail!(
-                "openssl genpkey failed: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-        }
+        let private_pem = private_key
+            .to_pkcs8_pem(LineEnding::LF)
+            .context("Failed to encode private key as PKCS8 PEM")?;
+        fs::write(private_key_path, private_pem.as_bytes())
+            .context("Failed to write private key")?;
 
-        // Extract public key
-        let output = Command::new("openssl")
-            .args([
-                "rsa",
-                "-pubout",
-                "-in",
-                private_key_path,
-                "-out",
-                public_key_path,
-            ])
-            .output()
-            .context("Failed to run openssl rsa")?;
-
-        if !output.status.success() {
-            anyhow::bail!(
-                "openssl rsa failed: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-        }
+        let public_pem = private_key
+            .to_public_key()
+            .to_public_key_pem(LineEnding::LF)
+            .context("Failed to encode public key as SPKI PEM")?;
+        fs::write(public_key_path, public_pem.as_bytes())
+            .context("Failed to write public key")?;
 
         tracing::info!("RSA key pair generated successfully");
         Ok(())
