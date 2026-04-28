@@ -111,20 +111,18 @@
 <!-- Full-screen overlay -->
 <div class="fixed inset-0 z-50 flex flex-col" style="background:var(--c-bg,#05050f);">
 
-	<!-- Fixed close button -->
-	<button
-		onclick={onclose}
-		class="fixed top-3 right-4 z-10 flex items-center justify-center w-8 h-8 rounded-lg transition"
-		style="color:var(--c-muted); background:transparent;"
-		onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.color='var(--c-text)'; (e.currentTarget as HTMLElement).style.background='var(--c-surface)'; }}
-		onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.color='var(--c-muted)'; (e.currentTarget as HTMLElement).style.background='transparent'; }}
-		aria-label="Schließen"
-	>
-		<svg class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-	</button>
-
 	<!-- Top bar -->
-	<div class="flex items-center gap-3 px-5 py-3 shrink-0" style="border-bottom:1px solid var(--c-border); background:var(--c-surface);">
+	<div class="flex items-center gap-3 px-3 py-3 shrink-0" style="border-bottom:1px solid var(--c-border); background:var(--c-surface);">
+		<button
+			onclick={onclose}
+			class="flex items-center justify-center w-8 h-8 rounded-lg transition shrink-0"
+			style="color:var(--c-muted); background:transparent;"
+			onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.color='var(--c-text)'; (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,.06)'; }}
+			onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.color='var(--c-muted)'; (e.currentTarget as HTMLElement).style.background='transparent'; }}
+			aria-label="Schließen"
+		>
+			<svg class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+		</button>
 		<span class="text-sm font-semibold" style="color:var(--c-text);">{app.name}</span>
 		<span style="color:var(--c-border);">/</span>
 		<span class="text-sm" style="color:var(--c-muted);">Datenbank</span>
