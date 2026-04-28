@@ -205,10 +205,12 @@ pub struct PullResponse {
 }
 
 /// One row in an RxDB push request.
+/// Accepts both camelCase (RxDB native) and snake_case field names.
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct PushRow {
+    #[serde(alias = "assumedMasterState")]
     pub assumed_master_state: Option<serde_json::Value>,
+    #[serde(alias = "newDocumentState")]
     pub new_document_state: serde_json::Value,
 }
 
