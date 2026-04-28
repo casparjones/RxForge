@@ -18,7 +18,7 @@ services:
       FRONTEND_DIR: ${FRONTEND_DIR:-/app/dist}
       RUST_LOG: ${RUST_LOG:-info}
     volumes:
-      - ./keys:/app/keys:ro
+      - ./keys:/app/keys   # read-write: server auto-generates RSA keys here on first start
       - ./dist:/app/dist:ro
     restart: unless-stopped
     healthcheck:

@@ -11,14 +11,24 @@ from the app tier so that upgrades and backups can be managed independently.
 - Docker and docker-compose (v2+).
 - A reachable PostgreSQL 14+ instance.
 - A reachable CouchDB 3.x instance with an admin user.
-- A JWT RSA keypair (the server signs access tokens with it). Generate one
-  with:
+- A writable `./keys` directory that is bind-mounted into the container at
+  `/app/keys`. **RxForge auto-generates an RSA-2048 keypair on first startup**
+  if no keys are found there — no manual step required. The files
+  `keys/private.pem` and `keys/public.pem` are created automatically and
+  persist across restarts via the bind-mount.
+
+  If you prefer to bring your own keypair (e.g. to share the same keys across
+  multiple instances), place them there before starting:
 
   ```bash
   mkdir -p keys
   openssl genpkey -algorithm RSA -out keys/private.pem -pkeyopt rsa_keygen_bits:2048
   openssl rsa -in keys/private.pem -pubout -out keys/public.pem
   ```
+
+  > **Important:** mount `./keys` as read-write (the default in
+  > `docker-compose.yml`). A read-only mount prevents auto-generation and
+  > will cause the server to fail on first start if the files are missing.
 
 ## 1. Configure the environment
 
@@ -84,7 +94,8 @@ docker compose logs -f rxforge
 The container exposes:
 
 - `:8080/api/v1/…` – REST + replication API used by the plugin.
-- `:8080/oauth/authorize` and `:8080/oauth/token` – OAuth endpoints.
+- `:8080/oauth/authorize` – OAuth authorization (browser redirect)
+- `:8080/api/v1/oauth/token` – token exchange endpoint
 - `:8080/` – admin dashboard (if `./dist` is populated).
 - `:8080/health` – health probe used by the built-in `healthcheck`.
 
