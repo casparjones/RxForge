@@ -4,9 +4,9 @@ use std::env;
 #[derive(Debug, Clone)]
 pub struct Config {
     pub database_url: String,
-    pub couchdb_url: String,
-    pub couchdb_user: String,
-    pub couchdb_password: String,
+    pub couchdb_url: Option<String>,
+    pub couchdb_user: Option<String>,
+    pub couchdb_password: Option<String>,
     pub mongodb_url: Option<String>,
     pub mongodb_db: String,
     pub jwt_private_key_path: String,
@@ -23,9 +23,9 @@ impl Config {
     pub fn from_env() -> anyhow::Result<Self> {
         Ok(Self {
             database_url: env::var("DATABASE_URL").context("DATABASE_URL not set")?,
-            couchdb_url: env::var("COUCHDB_URL").context("COUCHDB_URL not set")?,
-            couchdb_user: env::var("COUCHDB_USER").context("COUCHDB_USER not set")?,
-            couchdb_password: env::var("COUCHDB_PASSWORD").context("COUCHDB_PASSWORD not set")?,
+            couchdb_url: env::var("COUCHDB_URL").ok(),
+            couchdb_user: env::var("COUCHDB_USER").ok(),
+            couchdb_password: env::var("COUCHDB_PASSWORD").ok(),
             mongodb_url: env::var("MONGODB_URL").ok(),
             mongodb_db: env::var("MONGODB_DB").unwrap_or_else(|_| "rxforge".to_string()),
             jwt_private_key_path: env::var("JWT_PRIVATE_KEY_PATH")

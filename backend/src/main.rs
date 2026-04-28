@@ -63,11 +63,10 @@ async fn main() -> anyhow::Result<()> {
                 .context("Failed to initialize MongoDB linker")?,
         )
     } else {
-        Arc::new(CouchDbLinker(CouchDbClient::new(
-            &config.couchdb_url,
-            &config.couchdb_user,
-            &config.couchdb_password,
-        )))
+        let url = config.couchdb_url.as_deref().context("COUCHDB_URL not set and MONGODB_URL not set")?;
+        let user = config.couchdb_user.as_deref().context("COUCHDB_USER not set")?;
+        let password = config.couchdb_password.as_deref().context("COUCHDB_PASSWORD not set")?;
+        Arc::new(CouchDbLinker(CouchDbClient::new(url, user, password)))
     };
 
     // Start batched analytics writer (collects events, flushes every 5 s or 200 events)

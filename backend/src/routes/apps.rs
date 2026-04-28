@@ -10,6 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     error::{AppError, AppResult},
+    linker::slugify,
     middleware::auth::{require_permission, AuthUser},
     routes::oauth::hash_client_secret,
     state::AppState,
@@ -241,15 +242,31 @@ pub async fn delete_app(
     let owner_id = Uuid::parse_str(user.user_id())
         .map_err(|_| AppError::Internal(anyhow::anyhow!("Invalid user ID")))?;
 
-    let result = sqlx::query("DELETE FROM apps WHERE id = $1 AND owner_id = $2")
+    // Fetch app name before deleting so we can derive the db prefix.
+    let row: Option<(String,)> =
+        sqlx::query_as("SELECT name FROM apps WHERE id = $1 AND owner_id = $2")
+            .bind(id)
+            .bind(owner_id)
+            .fetch_optional(&state.db)
+            .await?;
+
+    let (app_name,) = row.ok_or_else(|| AppError::NotFound("App not found".to_string()))?;
+
+    // Delete all linker databases belonging to this app.
+    let app_slug = slugify(&app_name);
+    let short_id: String = id.simple().to_string().chars().take(8).collect();
+    let db_prefix = format!("{}_{}", app_slug, short_id);
+
+    let dbs = state.linker.list_dbs(&db_prefix).await.map_err(AppError::Internal)?;
+    for db_name in dbs {
+        state.linker.delete_db(&db_name).await.map_err(AppError::Internal)?;
+    }
+
+    sqlx::query("DELETE FROM apps WHERE id = $1 AND owner_id = $2")
         .bind(id)
         .bind(owner_id)
         .execute(&state.db)
         .await?;
-
-    if result.rows_affected() == 0 {
-        return Err(AppError::NotFound("App not found".to_string()));
-    }
 
     Ok(Json(serde_json::json!({"deleted": true})))
 }

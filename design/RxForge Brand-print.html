@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>RxForge — Brand & Login (Print)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  html, body { margin: 0; padding: 0; background: #0c0a07; font-family: "Space Grotesk", system-ui, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  * { box-sizing: border-box; }
+  input, button { font-family: inherit; }
+  a { color: inherit; text-decoration: none; }
+
+  /* Each page is a flex container that scales an artboard to fit */
+  .page {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #0c0a07;
+    page-break-after: always;
+    break-after: page;
+    position: relative;
+  }
+  .page:last-child { page-break-after: auto; break-after: auto; }
+  .scaler {
+    transform-origin: center center;
+    flex-shrink: 0;
+  }
+  .page-label {
+    position: absolute;
+    top: 16px;
+    left: 24px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    color: #6b5d4a;
+    letter-spacing: 0.15em;
+    z-index: 10;
+  }
+
+  @page { size: landscape; margin: 0; }
+
+  /* Portrait artboard prints on a portrait page */
+  @media print {
+    .page-portrait { page: portrait; }
+    .page-popup    { page: popup; }
+  }
+  @page portrait { size: portrait; margin: 0; }
+  @page popup    { size: portrait; margin: 0; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="logos.jsx"></script>
+<script type="text/babel" src="login-form.jsx"></script>
+<script type="text/babel" src="splash-screens.jsx"></script>
+<script type="text/babel" data-presets="env,react">
+  const { LogoSpecimen, SplashWide, SplashPortrait, SplashPopup } = window;
+  const { useEffect, useState, useLayoutEffect, useRef } = React;
+
+  // Page that scales an artboard of size W×H to fit the viewport
+  function PrintPage({ width, height, label, orientationClass, children }) {
+    const ref = useRef(null);
+    const [scale, setScale] = useState(1);
+
+    useLayoutEffect(() => {
+      const compute = () => {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const s = Math.min(vw / width, vh / height);
+        setScale(s);
+      };
+      compute();
+      window.addEventListener('resize', compute);
+      return () => window.removeEventListener('resize', compute);
+    }, [width, height]);
+
+    return (
+      <div className={"page " + (orientationClass || "")}>
+        <div className="page-label">{label}</div>
+        <div className="scaler" style={{ width, height, transform: `scale(${scale})` }}>
+          {children}
+        </div>
+      </div>
+    );
+  }
+
+  function PrintApp() {
+    return (
+      <>
+        <PrintPage width={1400} height={1080} label="01 · LOGO SYSTEM">
+          <LogoSpecimen />
+        </PrintPage>
+        <PrintPage width={1920} height={1080} label="02 · WIDESCREEN SPLASH 1920×1080">
+          <SplashWide />
+        </PrintPage>
+        <PrintPage width={1080} height={1920} label="03 · PORTRAIT SPLASH 1080×1920" orientationClass="page-portrait">
+          <SplashPortrait />
+        </PrintPage>
+        <PrintPage width={480} height={640} label="04 · POPUP LOGIN 480×640" orientationClass="page-popup">
+          <SplashPopup />
+        </PrintPage>
+      </>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<PrintApp />);
+
+  // Auto-print after fonts + Babel + a 500ms safety buffer
+  (async () => {
+    try { await document.fonts.ready; } catch (e) {}
+    setTimeout(() => { window.print(); }, 800);
+  })();
+</script>
+</body>
+</html>

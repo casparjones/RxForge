@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
+	import { parseOrigins } from '$lib/origins';
 	import { toast } from '$lib/stores/toast';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import { goto } from '$app/navigation';
@@ -92,7 +93,7 @@
 		if (!addTokenForApp) return;
 		creatingToken = true;
 		try {
-			const origins = newTokenOrigins.split('\n').map(s => s.trim()).filter(Boolean);
+			const origins = parseOrigins(newTokenOrigins);
 			const res = await api.apps.tokens.create(addTokenForApp, {
 				name: newTokenName.trim() || undefined,
 				allowed_origins: origins,

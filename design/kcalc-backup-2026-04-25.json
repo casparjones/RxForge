@@ -1,0 +1,224 @@
+{
+  "version": 1,
+  "exportedAt": "2026-04-25T13:02:18.367Z",
+  "profiles": {
+    "Frank": {
+      "profile": {
+        "gewicht": 130.7,
+        "groesse": "194",
+        "alter": "48",
+        "geschlecht": "m",
+        "formel": "harris",
+        "anpassung": "j",
+        "grundumsatz": "2199",
+        "pal": "1.28",
+        "leistungsumsatz": "616",
+        "gesamtumsatz": "2815",
+        "savedAt": "2026-04-14T12:46:14.557Z",
+        "tempo": 1000,
+        "activeGoal": "lose"
+      },
+      "weightHistory": [
+        {
+          "date": "2026-03-24",
+          "weight": 133.5,
+          "id": 1775668270793
+        },
+        {
+          "date": "2026-04-01",
+          "weight": 132.8,
+          "id": 1775656987462
+        },
+        {
+          "date": "2026-04-08",
+          "weight": 132.1,
+          "id": 1775648218298
+        },
+        {
+          "date": "2026-04-14",
+          "weight": 130.7,
+          "id": 1776156716856
+        },
+        {
+          "date": "2026-04-21",
+          "weight": 132.4,
+          "id": 1776754123489
+        }
+      ]
+    },
+    "Jasmin": {
+      "profile": {
+        "gewicht": "65",
+        "groesse": "170",
+        "alter": "39",
+        "geschlecht": "w",
+        "formel": "harris",
+        "anpassung": "n",
+        "grundumsatz": "1402",
+        "pal": "1.28",
+        "leistungsumsatz": "393",
+        "gesamtumsatz": "1795",
+        "savedAt": "2026-04-08T11:47:04.339Z",
+        "tempo": 1000,
+        "activeGoal": "maintain"
+      },
+      "weightHistory": [
+        {
+          "date": "2026-03-25",
+          "weight": 67,
+          "id": 1775656897447
+        },
+        {
+          "date": "2026-04-01",
+          "weight": 66,
+          "id": 1775649840165
+        },
+        {
+          "date": "2026-04-08",
+          "weight": 65,
+          "id": 1775656897449
+        }
+      ]
+    },
+    "Katja": {
+      "profile": {
+        "gewicht": "38",
+        "groesse": "170",
+        "alter": "36",
+        "geschlecht": "w",
+        "formel": "harris",
+        "anpassung": "n",
+        "grundumsatz": "1157",
+        "pal": "1.55",
+        "leistungsumsatz": "636",
+        "gesamtumsatz": "1793",
+        "savedAt": "2026-04-14T12:51:23.726Z",
+        "tempo": 1000,
+        "activeGoal": "gain"
+      },
+      "weightHistory": [
+        {
+          "date": "2026-04-14",
+          "weight": 38,
+          "id": 1776171083726
+        }
+      ]
+    },
+    "Marco": {
+      "profile": {
+        "gewicht": "89",
+        "groesse": "172",
+        "alter": "34",
+        "geschlecht": "m",
+        "formel": "harris",
+        "anpassung": "n",
+        "grundumsatz": "1915",
+        "pal": "1.42",
+        "leistungsumsatz": "804",
+        "gesamtumsatz": "2719",
+        "savedAt": "2026-04-14T15:16:09.160Z",
+        "tempo": 1000,
+        "activeGoal": "lose"
+      },
+      "weightHistory": [
+        {
+          "date": "2026-04-14",
+          "weight": 89,
+          "id": 1776179769160
+        }
+      ]
+    },
+    "Markus": {
+      "profile": {
+        "gewicht": "99",
+        "groesse": "194",
+        "alter": "48",
+        "geschlecht": "m",
+        "formel": "harris",
+        "anpassung": "n",
+        "grundumsatz": "2066",
+        "pal": "1.28",
+        "leistungsumsatz": "578",
+        "gesamtumsatz": "2644",
+        "savedAt": "2026-04-08T13:53:07.576Z",
+        "tempo": 500,
+        "activeGoal": "lose"
+      },
+      "weightHistory": [
+        {
+          "date": "2026-04-08",
+          "weight": 105,
+          "id": 1775656339607
+        }
+      ]
+    }
+  },
+  "entries": [
+    {
+      "profileName": "Frank",
+      "date": "2026-03-24",
+      "weight": 133.5,
+      "entryId": 1775668270793
+    },
+    {
+      "profileName": "Frank",
+      "date": "2026-04-01",
+      "weight": 132.8,
+      "entryId": 1775656987462
+    },
+    {
+      "profileName": "Frank",
+      "date": "2026-04-08",
+      "weight": 132.1,
+      "entryId": 1775648218298
+    },
+    {
+      "profileName": "Frank",
+      "date": "2026-04-14",
+      "weight": 130.7,
+      "entryId": 1776156716856
+    },
+    {
+      "profileName": "Frank",
+      "date": "2026-04-21",
+      "weight": 132.4,
+      "entryId": 1776754123489
+    },
+    {
+      "profileName": "Jasmin",
+      "date": "2026-03-25",
+      "weight": 67,
+      "entryId": 1775656897447
+    },
+    {
+      "profileName": "Jasmin",
+      "date": "2026-04-01",
+      "weight": 66,
+      "entryId": 1775649840165
+    },
+    {
+      "profileName": "Jasmin",
+      "date": "2026-04-08",
+      "weight": 65,
+      "entryId": 1775656897449
+    },
+    {
+      "profileName": "Katja",
+      "date": "2026-04-14",
+      "weight": 38,
+      "entryId": 1776171083726
+    },
+    {
+      "profileName": "Marco",
+      "date": "2026-04-14",
+      "weight": 89,
+      "entryId": 1776179769160
+    },
+    {
+      "profileName": "Markus",
+      "date": "2026-04-08",
+      "weight": 105,
+      "entryId": 1775656339607
+    }
+  ]
+}

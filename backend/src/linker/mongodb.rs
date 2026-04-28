@@ -155,6 +155,15 @@ impl Linker for MongoDbLinker {
             .with_context(|| format!("failed to drop MongoDB collection {db_name}"))
     }
 
+    async fn list_dbs(&self, prefix: &str) -> anyhow::Result<Vec<String>> {
+        let names = self
+            .db
+            .list_collection_names()
+            .await
+            .context("failed to list MongoDB collections")?;
+        Ok(names.into_iter().filter(|n| n.starts_with(prefix)).collect())
+    }
+
     async fn get_changes(
         &self,
         db_name: &str,

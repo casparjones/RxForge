@@ -81,6 +81,22 @@ impl CouchDbClient {
         }
     }
 
+    /// List all CouchDB databases whose name starts with `prefix`.
+    pub async fn list_dbs_with_prefix(&self, prefix: &str) -> Result<Vec<String>> {
+        let url = format!(
+            "{}/_all_dbs?start_key=\"{}\"&end_key=\"{}{{\"",
+            self.base_url, prefix, prefix
+        );
+        let response = self
+            .client
+            .get(&url)
+            .basic_auth(&self.user, Some(&self.password))
+            .send()
+            .await?;
+        let dbs: Vec<String> = response.json().await?;
+        Ok(dbs.into_iter().filter(|d| d.starts_with(prefix)).collect())
+    }
+
     /// Delete a CouchDB database.
     pub async fn delete_db(&self, db_name: &str) -> Result<()> {
         let response = self

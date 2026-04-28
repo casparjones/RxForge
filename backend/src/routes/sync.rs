@@ -206,10 +206,9 @@ pub struct PullResponse {
 
 /// One row in an RxDB push request.
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PushRow {
-    /// What the client believes the server currently holds (null = new document).
     pub assumed_master_state: Option<serde_json::Value>,
-    /// The document state the client wants to write.
     pub new_document_state: serde_json::Value,
 }
 

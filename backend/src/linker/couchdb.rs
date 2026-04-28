@@ -25,6 +25,13 @@ impl Linker for CouchDbLinker {
             .with_context(|| format!("failed to delete CouchDB database {db_name}"))
     }
 
+    async fn list_dbs(&self, prefix: &str) -> anyhow::Result<Vec<String>> {
+        self.0
+            .list_dbs_with_prefix(prefix)
+            .await
+            .with_context(|| format!("failed to list CouchDB databases with prefix {prefix}"))
+    }
+
     async fn get_changes(
         &self,
         db_name: &str,

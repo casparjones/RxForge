@@ -67,6 +67,7 @@ pub struct BulkDocsResult {
 pub trait Linker: Send + Sync {
     async fn ensure_db(&self, db_name: &str) -> anyhow::Result<()>;
     async fn delete_db(&self, db_name: &str) -> anyhow::Result<()>;
+    async fn list_dbs(&self, prefix: &str) -> anyhow::Result<Vec<String>>;
     async fn get_changes(
         &self,
         db_name: &str,

@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
+	import { parseOrigins } from '$lib/origins';
 	import { toast } from '$lib/stores/toast';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 
@@ -20,6 +21,16 @@
 
 	let confirmOpen = $state(false);
 
+	// Token management
+	let tokens = $state<any[]>([]);
+	let loadingTokens = $state(false);
+	let showAddToken = $state(false);
+	let newTokenName = $state('');
+	let newTokenOrigins = $state('');
+	let creatingToken = $state(false);
+	let revealedToken = $state<{ token: string; name: string } | null>(null);
+	let confirmToken = $state<any | null>(null);
+
 	onMount(async () => {
 		try {
 			app = await api.apps.get(appId);
@@ -27,12 +38,48 @@
 			editAuthType = app.auth_type ?? 'oauth';
 			editDbScope = app.db_scope ?? 'isolated';
 			editRedirects = (app.redirect_uris ?? []).join('\n');
+			if (app.auth_type === 'token') await loadTokens();
 		} catch (e: any) {
 			loadError = e.message;
 		} finally {
 			loading = false;
 		}
 	});
+
+	async function loadTokens() {
+		loadingTokens = true;
+		try { tokens = await api.apps.tokens.list(appId); }
+		catch { tokens = []; }
+		finally { loadingTokens = false; }
+	}
+
+	async function createToken() {
+		creatingToken = true;
+		try {
+			const origins = parseOrigins(newTokenOrigins);
+			const res = await api.apps.tokens.create(appId, {
+				name: newTokenName.trim() || undefined,
+				allowed_origins: origins,
+			});
+			tokens = [res, ...tokens];
+			showAddToken = false;
+			revealedToken = { token: res.token, name: res.name };
+		} catch (e: any) {
+			toast.error('Fehler: ' + e.message);
+		} finally {
+			creatingToken = false;
+		}
+	}
+
+	async function revokeToken(tokenId: string) {
+		try {
+			await api.apps.tokens.revoke(appId, tokenId);
+			tokens = tokens.map(t => t.id === tokenId ? { ...t, revoked: true } : t);
+			toast.success('Token widerrufen.');
+		} catch (e: any) {
+			toast.error('Fehler: ' + e.message);
+		}
+	}
 
 	async function save() {
 		saving = true;
@@ -194,6 +241,63 @@
 
 					</div>
 
+					<!-- ── Token Management (nur für token-Apps) ── -->
+					{#if editAuthType === 'token'}
+					<div class="px-6 py-5 space-y-3" style="border-top:1px solid var(--c-border);">
+						<div class="flex items-center justify-between">
+							<p class="text-xs font-semibold uppercase tracking-wide" style="color:var(--c-muted);">Public Tokens</p>
+							<button
+								onclick={() => { newTokenName = ''; newTokenOrigins = ''; showAddToken = true; }}
+								class="text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+								style="background:#fbbf24; color:#1a1200;"
+								onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='#fcd34d'; }}
+								onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#fbbf24'; }}
+							>+ Token hinzufügen</button>
+						</div>
+
+						{#if loadingTokens}
+							<p class="text-sm" style="color:var(--c-muted);">Lädt…</p>
+						{:else if !tokens.length}
+							<p class="text-sm py-2" style="color:var(--c-muted);">Noch kein Token. Erstelle einen um die App zu nutzen.</p>
+						{:else}
+							<div class="space-y-2">
+								{#each tokens as tok (tok.id)}
+									<div class="rounded-lg px-4 py-3 flex items-start justify-between gap-3" style="background:var(--c-bg); border:1px solid {tok.revoked ? 'var(--c-border)' : 'rgba(251,191,36,.2)'}; opacity:{tok.revoked ? .5 : 1};">
+										<div class="min-w-0">
+											<div class="flex items-center gap-2 flex-wrap">
+												<code class="text-xs font-mono" style="color:#fbbf24;">{tok.token_prefix}…</code>
+												<span class="text-xs font-medium" style="color:var(--c-text);">{tok.name}</span>
+												{#if tok.revoked}
+													<span class="text-xs px-1.5 py-0.5 rounded" style="background:rgba(248,113,113,.12); color:#f87171;">Widerrufen</span>
+												{:else}
+													<span class="text-xs px-1.5 py-0.5 rounded" style="background:rgba(74,222,128,.1); color:#4ade80;">Aktiv</span>
+												{/if}
+											</div>
+											{#if tok.allowed_origins?.length}
+												<p class="text-xs mt-1 font-mono" style="color:var(--c-muted);">Origins: {tok.allowed_origins.join(', ')}</p>
+											{:else}
+												<p class="text-xs mt-1" style="color:var(--c-muted);">Alle Origins erlaubt</p>
+											{/if}
+											{#if tok.last_used_at}
+												<p class="text-xs mt-0.5" style="color:var(--c-muted);">Zuletzt genutzt: {new Date(tok.last_used_at).toLocaleDateString('de')}</p>
+											{/if}
+										</div>
+										{#if !tok.revoked}
+											<button
+												onclick={() => { confirmToken = tok; }}
+												class="text-xs px-2 py-1 rounded shrink-0 transition"
+												style="color:#f87171; border:1px solid rgba(248,113,113,.25); background:transparent;"
+												onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(248,113,113,.08)'; }}
+												onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}
+											>Widerrufen</button>
+										{/if}
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
+					{/if}
+
 					<!-- Footer -->
 					<div class="flex items-center justify-between px-6 py-4" style="border-top:1px solid var(--c-border);">
 						<button
@@ -238,3 +342,93 @@
 	onConfirm={() => { confirmOpen = false; doDelete(); }}
 	onCancel={() => { confirmOpen = false; }}
 />
+
+<ConfirmDialog
+	open={!!confirmToken}
+	title="Token widerrufen"
+	message={`„${confirmToken?.name}" unwiderruflich deaktivieren?`}
+	confirmLabel="Widerrufen"
+	destructive={true}
+	onConfirm={() => { const id = confirmToken!.id; confirmToken = null; revokeToken(id); }}
+	onCancel={() => { confirmToken = null; }}
+/>
+
+<!-- Token erstellen Modal -->
+{#if showAddToken}
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,.6);">
+	<div style="background:var(--c-surface); border:1px solid var(--c-border); border-radius:16px; width:100%; max-width:420px; box-shadow:0 16px 48px rgba(0,0,0,.5);">
+		<div class="px-6 py-5" style="border-bottom:1px solid var(--c-border);">
+			<h2 class="text-base font-semibold" style="color:var(--c-text);">Neuer Token</h2>
+		</div>
+		<div class="px-6 py-5 space-y-4">
+			<div>
+				<label class="block text-xs font-semibold uppercase tracking-wide mb-1.5" style="color:var(--c-muted);">Name (optional)</label>
+				<input
+					type="text"
+					bind:value={newTokenName}
+					placeholder="z.B. Production"
+					class="w-full px-3 py-2 text-sm rounded-lg outline-none"
+					style="background:var(--c-bg); border:1px solid var(--c-border); color:var(--c-text);"
+					onfocus={(e) => { (e.currentTarget as HTMLElement).style.borderColor='#fbbf24'; }}
+					onblur={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border)'; }}
+				/>
+			</div>
+			<div>
+				<label class="block text-xs font-semibold uppercase tracking-wide mb-1.5" style="color:var(--c-muted);">
+					Erlaubte Origins <span class="normal-case font-normal">(eine pro Zeile, leer = alle)</span>
+				</label>
+				<textarea
+					bind:value={newTokenOrigins}
+					rows="3"
+					placeholder="https://myapp.com"
+					class="w-full px-3 py-2 text-sm rounded-lg outline-none resize-none"
+					style="background:var(--c-bg); border:1px solid var(--c-border); color:var(--c-text); font-family:'JetBrains Mono',monospace; font-size:12px;"
+					onfocus={(e) => { (e.currentTarget as HTMLElement).style.borderColor='#fbbf24'; }}
+					onblur={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border)'; }}
+				></textarea>
+			</div>
+		</div>
+		<div class="flex justify-end gap-2 px-6 py-4" style="border-top:1px solid var(--c-border);">
+			<button
+				onclick={() => { showAddToken = false; }}
+				class="text-sm px-4 py-1.5 rounded-lg transition"
+				style="border:1px solid var(--c-border); color:var(--c-muted); background:transparent;"
+			>Abbrechen</button>
+			<button
+				onclick={createToken}
+				disabled={creatingToken}
+				class="text-sm font-semibold px-4 py-1.5 rounded-lg disabled:opacity-60 transition"
+				style="background:#fbbf24; color:#1a1200;"
+			>{creatingToken ? 'Erstelle…' : 'Token erstellen'}</button>
+		</div>
+	</div>
+</div>
+{/if}
+
+<!-- Token anzeigen Modal -->
+{#if revealedToken}
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,.6);">
+	<div style="background:var(--c-surface); border:1px solid var(--c-border); border-radius:16px; width:100%; max-width:420px; box-shadow:0 16px 48px rgba(0,0,0,.5);">
+		<div class="px-6 py-5" style="border-bottom:1px solid var(--c-border);">
+			<h2 class="text-base font-semibold" style="color:var(--c-text);">Token kopieren</h2>
+			<p class="text-xs mt-1" style="color:#f87171;">Nur einmal sichtbar – jetzt kopieren!</p>
+		</div>
+		<div class="px-6 py-5">
+			<p class="text-xs font-semibold uppercase tracking-wide mb-2" style="color:var(--c-muted);">{revealedToken.name}</p>
+			<code class="block w-full text-xs rounded-lg px-3 py-3 break-all" style="background:var(--c-bg); border:1px solid rgba(251,191,36,.3); color:#fbbf24; font-family:'JetBrains Mono',monospace;">{revealedToken.token}</code>
+		</div>
+		<div class="flex justify-end gap-2 px-6 py-4" style="border-top:1px solid var(--c-border);">
+			<button
+				onclick={() => { navigator.clipboard.writeText(revealedToken!.token); toast.success('Token kopiert.'); }}
+				class="text-sm font-semibold px-4 py-1.5 rounded-lg transition"
+				style="background:#fbbf24; color:#1a1200;"
+			>Kopieren</button>
+			<button
+				onclick={() => { revealedToken = null; }}
+				class="text-sm px-4 py-1.5 rounded-lg transition"
+				style="border:1px solid var(--c-border); color:var(--c-muted); background:transparent;"
+			>Schließen</button>
+		</div>
+	</div>
+</div>
+{/if}
