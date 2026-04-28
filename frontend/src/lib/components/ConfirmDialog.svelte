@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n';
+
 	interface Props {
 		open: boolean;
 		title: string;
@@ -48,7 +50,7 @@
 					style="border:1px solid var(--c-border); color:var(--c-muted); background:transparent;"
 					onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border-hi)'; (e.currentTarget as HTMLElement).style.color='var(--c-text)'; }}
 					onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border)'; (e.currentTarget as HTMLElement).style.color='var(--c-muted)'; }}
-				>Abbrechen</button>
+				>{$t('common.cancel')}</button>
 				<button
 					type="button"
 					onclick={onConfirm}

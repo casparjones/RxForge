@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { api } from '$lib/api';
 	import { toast } from '$lib/stores/toast';
+	import { get } from 'svelte/store';
+	import { t } from '$lib/i18n';
 	import ConfirmDialog from './ConfirmDialog.svelte';
 
 	interface Props {
@@ -31,10 +33,10 @@
 				redirect_uris: redirectUris,
 			});
 			onsaved({ ...app, ...updated });
-			toast.success('App gespeichert.');
+			toast.success(get(t)('apps.appSaved'));
 			onclose();
 		} catch (e: any) {
-			toast.error('Fehler: ' + e.message);
+			toast.error('Error: ' + e.message);
 		} finally {
 			saving = false;
 		}
@@ -44,10 +46,10 @@
 		try {
 			await api.apps.delete(app.id);
 			ondeleted();
-			toast.success('App gelöscht.');
+			toast.success(get(t)('apps.appDeleted'));
 			onclose();
 		} catch (e: any) {
-			toast.error('Fehler: ' + e.message);
+			toast.error('Error: ' + e.message);
 		}
 	}
 </script>
@@ -70,7 +72,7 @@
 	>
 		<!-- Header -->
 		<div class="flex items-center justify-between px-6 py-4" style="border-bottom:1px solid var(--c-border);">
-			<h2 style="font-size:16px; font-weight:600; color:var(--c-text);">{app.name} bearbeiten</h2>
+			<h2 style="font-size:16px; font-weight:600; color:var(--c-text);">{$t('apps.editTitle', { name: app.name })}</h2>
 			<button onclick={onclose} style="color:var(--c-muted); font-size:20px; line-height:1; background:none; border:none; cursor:pointer;">×</button>
 		</div>
 
@@ -79,7 +81,7 @@
 
 			<!-- Name -->
 			<div>
-				<label class="block text-xs font-semibold uppercase tracking-wide mb-1.5" style="color:var(--c-muted);">App Name</label>
+				<label class="block text-xs font-semibold uppercase tracking-wide mb-1.5" style="color:var(--c-muted);">{$t('apps.appName')}</label>
 				<input
 					type="text"
 					bind:value={editName}
@@ -92,44 +94,44 @@
 
 			<!-- Auth Type -->
 			<div>
-				<p class="text-xs font-semibold uppercase tracking-wide mb-2" style="color:var(--c-muted);">Auth Type</p>
+				<p class="text-xs font-semibold uppercase tracking-wide mb-2" style="color:var(--c-muted);">{$t('apps.authType')}</p>
 				<div class="grid grid-cols-2 gap-3">
 					<label class="flex flex-col gap-1 rounded-lg p-3 cursor-pointer" style="{editAuthType === 'oauth' ? 'border:1px solid #7c7cff; background:rgba(124,124,255,.06);' : 'border:1px solid var(--c-border);'}">
 						<input type="radio" bind:group={editAuthType} value="oauth" class="sr-only" />
-						<span class="font-medium text-sm" style="color:var(--c-text);">OAuth 2.0</span>
-						<span class="text-xs" style="color:var(--c-muted);">Authorization Code Flow</span>
+						<span class="font-medium text-sm" style="color:var(--c-text);">{$t('apps.authOAuth')}</span>
+						<span class="text-xs" style="color:var(--c-muted);">{$t('apps.authOAuthDesc')}</span>
 					</label>
 					<label class="flex flex-col gap-1 rounded-lg p-3 cursor-pointer" style="{editAuthType === 'token' ? 'border:1px solid #fbbf24; background:rgba(251,191,36,.06);' : 'border:1px solid var(--c-border);'}">
 						<input type="radio" bind:group={editAuthType} value="token" class="sr-only" />
-						<span class="font-medium text-sm" style="color:var(--c-text);">Public Token</span>
-						<span class="text-xs" style="color:var(--c-muted);">API-Key für SPAs</span>
+						<span class="font-medium text-sm" style="color:var(--c-text);">{$t('apps.authToken')}</span>
+						<span class="text-xs" style="color:var(--c-muted);">{$t('apps.authTokenDesc')}</span>
 					</label>
 				</div>
 				{#if editAuthType === 'token'}
 					<p class="mt-2 text-xs rounded-lg px-3 py-2" style="color:#fbbf24; background:rgba(251,191,36,.06); border:1px solid rgba(251,191,36,.2);">
-						⚠️ Token ist im JS-Code sichtbar. Origin-Binding beim Token aktivieren.
+						⚠️ {$t('apps.authTokenWarning')}
 					</p>
 				{/if}
 			</div>
 
 			<!-- DB Scope -->
 			<div>
-				<p class="text-xs font-semibold uppercase tracking-wide mb-2" style="color:var(--c-muted);">Datenbank-Scope</p>
+				<p class="text-xs font-semibold uppercase tracking-wide mb-2" style="color:var(--c-muted);">{$t('apps.dbScope')}</p>
 				<div class="grid grid-cols-2 gap-3">
 					<label class="flex flex-col gap-1 rounded-lg p-3 cursor-pointer" style="{editDbScope === 'isolated' ? 'border:1px solid #7c7cff; background:rgba(124,124,255,.06);' : 'border:1px solid var(--c-border);'}">
 						<input type="radio" bind:group={editDbScope} value="isolated" class="sr-only" />
-						<span class="font-medium text-sm" style="color:var(--c-text);">Isoliert</span>
-						<span class="text-xs" style="color:var(--c-muted);">Jeder Nutzer eigene DB</span>
+						<span class="font-medium text-sm" style="color:var(--c-text);">{$t('apps.dbIsolated')}</span>
+						<span class="text-xs" style="color:var(--c-muted);">{$t('apps.dbIsolatedDesc')}</span>
 					</label>
 					<label class="flex flex-col gap-1 rounded-lg p-3 cursor-pointer" style="{editDbScope === 'shared' ? 'border:1px solid #f87171; background:rgba(248,113,113,.06);' : 'border:1px solid var(--c-border);'}">
 						<input type="radio" bind:group={editDbScope} value="shared" class="sr-only" />
-						<span class="font-medium text-sm" style="color:var(--c-text);">Geteilt</span>
-						<span class="text-xs" style="color:var(--c-muted);">Alle teilen eine DB</span>
+						<span class="font-medium text-sm" style="color:var(--c-text);">{$t('apps.dbShared')}</span>
+						<span class="text-xs" style="color:var(--c-muted);">{$t('apps.dbSharedDesc')}</span>
 					</label>
 				</div>
 				{#if editDbScope === 'shared'}
 					<p class="mt-2 text-xs rounded-lg px-3 py-2" style="color:#f87171; background:rgba(248,113,113,.06); border:1px solid rgba(248,113,113,.2);">
-						⚠️ Alle authentifizierten Nutzer lesen und schreiben dieselbe DB.
+						⚠️ {$t('apps.dbSharedWarning')}
 					</p>
 				{/if}
 			</div>
@@ -138,7 +140,7 @@
 			{#if editAuthType === 'oauth'}
 				<div>
 					<label class="block text-xs font-semibold uppercase tracking-wide mb-1.5" style="color:var(--c-muted);">
-						Redirect URIs <span class="normal-case font-normal">(eine pro Zeile)</span>
+						{$t('apps.redirectUris')} <span class="normal-case font-normal">({$t('apps.redirectUrisHint')})</span>
 					</label>
 					<textarea
 						bind:value={editRedirects}
@@ -161,7 +163,7 @@
 				style="color:#f87171; border:1px solid rgba(248,113,113,.25); background:transparent;"
 				onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(248,113,113,.08)'; }}
 				onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}
-			>App löschen</button>
+			>{$t('apps.deleteApp')}</button>
 			<div class="flex gap-2">
 				<button
 					onclick={onclose}
@@ -169,7 +171,7 @@
 					style="border:1px solid var(--c-border); color:var(--c-muted); background:transparent;"
 					onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.color='var(--c-text)'; }}
 					onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.color='var(--c-muted)'; }}
-				>Abbrechen</button>
+				>{$t('common.cancel')}</button>
 				<button
 					onclick={save}
 					disabled={saving}
@@ -177,7 +179,7 @@
 					style="background:#7c7cff; color:#05050f;"
 					onmouseenter={(e) => { if (!saving) (e.currentTarget as HTMLElement).style.background='#9090ff'; }}
 					onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#7c7cff'; }}
-				>{saving ? 'Speichern…' : 'Speichern'}</button>
+				>{saving ? $t('common.saving') : $t('common.save')}</button>
 			</div>
 		</div>
 	</div>
@@ -185,9 +187,9 @@
 
 <ConfirmDialog
 	open={confirmOpen}
-	title="App löschen"
-	message='"{app.name}" unwiderruflich löschen? Alle Daten gehen verloren.'
-	confirmLabel="Löschen"
+	title={$t('apps.deleteApp')}
+	message={$t('apps.deleteAppConfirm', { name: app.name })}
+	confirmLabel={$t('common.delete')}
 	destructive={true}
 	onConfirm={() => { confirmOpen = false; doDelete(); }}
 	onCancel={() => { confirmOpen = false; }}

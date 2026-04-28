@@ -4,6 +4,7 @@
 	import { page } from '$app/stores';
 	import { auth } from '$lib/stores/auth';
 	import { api } from '$lib/api';
+	import { t } from '$lib/i18n';
 	import RxLogo from '$lib/components/RxLogo.svelte';
 
 	let clientId = $derived($page.url.searchParams.get('client_id') ?? '');
@@ -84,11 +85,11 @@
 		{#if loading || submitting}
 			<div class="rounded-xl p-10 text-center" style="background:#161829; border:1px solid #2e3247;">
 				<div class="inline-block w-5 h-5 rounded-full border-2 border-t-transparent animate-spin mb-3" style="border-color:#7c7cff; border-top-color:transparent;"></div>
-				<p style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#8b8fa8;">{submitting ? 'Authorising…' : 'Loading…'}</p>
+				<p style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#8b8fa8;">{submitting ? $t('oauth.loading') : $t('oauth.loading')}</p>
 			</div>
 		{:else if error}
 			<div class="rounded-xl p-6" style="background:#161829; border:1px solid #2e3247;">
-				<div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#ff9ab0; background:#2a1422; border:1px solid #4a2034; border-radius:4px; padding:8px 12px;">! {error}</div>
+				<div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#ff9ab0; background:#2a1422; border:1px solid #4a2034; border-radius:4px; padding:8px 12px;">! {$t('oauth.error')}: {error}</div>
 			</div>
 		{:else}
 			<div class="rounded-xl p-8" style="background:#161829; border:1px solid #2e3247;">
@@ -100,7 +101,7 @@
 						</svg>
 					</div>
 					<p style="font-size:15px; color:#eef0fa;">
-						<strong>{appName}</strong> wants access to your RxForge data.
+						{$t('oauth.title', { name: appName })}
 					</p>
 					{#if scope}
 						<p class="mt-1" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8b8fa8;">Scope: {scope}</p>
@@ -125,14 +126,14 @@
 						style="border:1px solid #2e3247; color:#8b8fa8; background:transparent; font-family:'Space Grotesk',sans-serif; cursor:pointer;"
 						onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.borderColor='#3e4257'; (e.currentTarget as HTMLElement).style.color='#eef0fa'; }}
 						onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.borderColor='#2e3247'; (e.currentTarget as HTMLElement).style.color='#8b8fa8'; }}
-					>Deny</button>
+					>{$t('oauth.deny')}</button>
 					<button
 						onclick={grant}
 						class="flex-1 py-2.5 rounded-lg text-sm font-semibold transition-colors"
 						style="background:#7c7cff; color:#05050f; border:none; font-family:'Space Grotesk',sans-serif; cursor:pointer;"
 						onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='#9090ff'; }}
 						onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#7c7cff'; }}
-					>Allow Access</button>
+					>{$t('oauth.allow')}</button>
 				</div>
 
 				<p class="text-center mt-4" style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#4a4f6a;">

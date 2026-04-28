@@ -4,6 +4,7 @@
 	import { onMount } from 'svelte';
 	import { auth } from '$lib/stores/auth';
 	import { theme } from '$lib/stores/theme';
+	import { t, lang } from '$lib/i18n';
 	import RxLogo from '$lib/components/RxLogo.svelte';
 
 	let { children } = $props();
@@ -22,10 +23,10 @@
 	}
 
 	const navLinks = [
-		{ href: '/dashboard',            label: 'Dashboard' },
-		{ href: '/dashboard/rights',     label: 'Rights' },
-		{ href: '/dashboard/apps',       label: 'Apps' },
-		{ href: '/dashboard/analytics',  label: 'Analytics' },
+		{ href: '/dashboard',            labelKey: 'nav.dashboard' },
+		{ href: '/dashboard/rights',     labelKey: 'nav.rights' },
+		{ href: '/dashboard/apps',       labelKey: 'nav.apps' },
+		{ href: '/dashboard/analytics',  labelKey: 'nav.analytics' },
 	];
 </script>
 
@@ -60,7 +61,7 @@
 								: 'color:var(--c-muted);'}
 							onmouseenter={(e) => { if (!isActive(link.href)) (e.currentTarget as HTMLElement).style.background = 'color-mix(in srgb,var(--c-text) 6%,transparent)'; (e.currentTarget as HTMLElement).style.color = 'var(--c-text)'; }}
 							onmouseleave={(e) => { if (!isActive(link.href)) { (e.currentTarget as HTMLElement).style.background = ''; (e.currentTarget as HTMLElement).style.color = 'var(--c-muted)'; } }}
-						>{link.label}</a>
+						>{$t(link.labelKey)}</a>
 					{/each}
 
 					{#if $auth.user?.role === 'admin' || $auth.user?.role === 'superadmin'}
@@ -70,7 +71,7 @@
 							style="color:#f87171;"
 							onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(248,113,113,.1)'; }}
 							onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background = ''; }}
-						>Admin</a>
+						>{$t('nav.admin')}</a>
 					{/if}
 				</div>
 
@@ -102,13 +103,22 @@
 						{/if}
 					</button>
 
+					<!-- Language toggle -->
+					<button
+						onclick={() => lang.update(l => l === 'en' ? 'de' : 'en')}
+						class="text-xs px-2 py-1.5 rounded-lg transition-colors font-medium"
+						style="border:1px solid var(--c-border); color:var(--c-muted); background:transparent;"
+						onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background = 'color-mix(in srgb,var(--c-text) 8%,transparent)'; (e.currentTarget as HTMLElement).style.color='var(--c-text)'; }}
+						onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color='var(--c-muted)'; }}
+					>{$lang === 'en' ? 'DE' : 'EN'}</button>
+
 					<button
 						onclick={() => { auth.logout(); goto('/login'); }}
 						class="text-xs px-3 py-1.5 rounded-lg transition-colors"
 						style="border:1px solid var(--c-border); color:var(--c-muted); background:transparent;"
 						onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.borderColor='#f87171'; (e.currentTarget as HTMLElement).style.color='#f87171'; }}
 						onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border)'; (e.currentTarget as HTMLElement).style.color='var(--c-muted)'; }}
-					>Logout</button>
+					>{$t('common.logout')}</button>
 				</div>
 			</div>
 		</div>

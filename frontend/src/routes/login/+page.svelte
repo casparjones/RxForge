@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { get } from 'svelte/store';
 	import { auth } from '$lib/stores/auth';
 	import { api } from '$lib/api';
 	import { toast } from '$lib/stores/toast';
+	import { t } from '$lib/i18n';
 	import RxLogo from '$lib/components/RxLogo.svelte';
 	import { PUBLIC_APP_DOMAIN } from '$env/static/public';
 
@@ -25,8 +27,8 @@
 
 	async function handleLogin() {
 		error = '';
-		if (!email || !password) { error = 'Email and password are required.'; return; }
-		if (!email.includes('@')) { error = 'Enter a valid email address.'; return; }
+		if (!email || !password) { error = get(t)('auth.emailPasswordRequired'); return; }
+		if (!email.includes('@')) { error = get(t)('auth.invalidEmail'); return; }
 		loading = true;
 		try {
 			const res = await api.auth.login(email, password) as any;
@@ -35,11 +37,11 @@
 				pendingToken = res.temp_token ?? '';
 			} else {
 				auth.login(res.token, res.user);
-				toast.success('Welcome back!');
+				toast.success(get(t)('auth.welcomeBack'));
 				window.location.href = getReturnTo();
 			}
 		} catch (e: any) {
-			error = e.message || 'Authentication failed.';
+			error = e.message || get(t)('auth.authFailed');
 		} finally {
 			loading = false;
 		}
@@ -47,7 +49,7 @@
 
 	async function handle2fa() {
 		error = '';
-		if (totpCode.length !== 6) { error = 'Enter the 6-digit code.'; return; }
+		if (totpCode.length !== 6) { error = get(t)('auth.codeRequired'); return; }
 		loading = true;
 		try {
 			const res = await fetch('/api/v1/auth/2fa/verify', {
@@ -58,10 +60,10 @@
 			if (!res.ok) throw new Error(await res.text());
 			const data = await res.json();
 			auth.login(data.token, data.user);
-			toast.success('Welcome back!');
+			toast.success(get(t)('auth.welcomeBack'));
 			window.location.href = getReturnTo();
 		} catch (e: any) {
-			error = e.message || '2FA verification failed.';
+			error = e.message || get(t)('auth.twoFaFailed');
 		} finally {
 			loading = false;
 		}
@@ -161,7 +163,7 @@
 						<div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#7c7cff; letter-spacing:.15em; margin-bottom:10px;">
 							─ SIGN IN
 						</div>
-						<div style="font-size:24px; font-weight:600; letter-spacing:-.02em;">Welcome back</div>
+						<div style="font-size:24px; font-weight:600; letter-spacing:-.02em;">{$t('auth.signInTitle')}</div>
 						<div style="color:#8b8fa8; font-size:13px; margin-top:5px;">
 							Authenticate to sync your local-first data.
 						</div>
@@ -178,7 +180,7 @@
 							<label
 								for="email"
 								style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#8b8fa8; margin-bottom:6px; display:block;"
-							>Email</label>
+							>{$t('auth.email')}</label>
 							<input
 								id="email"
 								type="email"
@@ -196,7 +198,7 @@
 								<label
 									for="password"
 									style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#8b8fa8;"
-								>Password</label>
+								>{$t('auth.password')}</label>
 							</div>
 							<input
 								id="password"
@@ -217,7 +219,7 @@
 							onmousedown={(e) => { if (!loading) (e.currentTarget as HTMLButtonElement).style.transform='scale(0.98)'; }}
 							onmouseup={(e) => { (e.currentTarget as HTMLButtonElement).style.transform='scale(1)'; }}
 						>
-							{loading ? 'Authenticating…' : 'Sign in to RxForge'}
+							{loading ? $t('auth.signingIn') : $t('auth.signIn')}
 						</button>
 					</form>
 
@@ -225,7 +227,7 @@
 						class="mt-5 text-center"
 						style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8b8fa8;"
 					>
-						New here? <a href="/register" style="color:#eef0fa; text-decoration:none; border-bottom:1px dotted #8b8fa8;">Create an account</a>
+						{$t('auth.noAccount')} <a href="/register" style="color:#eef0fa; text-decoration:none; border-bottom:1px dotted #8b8fa8;">{$t('auth.createAccount')}</a>
 					</div>
 				</div>
 
@@ -239,9 +241,9 @@
 						<div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#7c7cff; letter-spacing:.15em; margin-bottom:10px;">
 							─ TWO-FACTOR AUTH
 						</div>
-						<div style="font-size:22px; font-weight:600; letter-spacing:-.02em;">Enter your code</div>
+						<div style="font-size:22px; font-weight:600; letter-spacing:-.02em;">{$t('auth.twoFa')}</div>
 						<div style="color:#8b8fa8; font-size:13px; margin-top:5px;">
-							Check your authenticator app for a 6-digit code.
+							{$t('auth.twoFaHint')}
 						</div>
 					</div>
 
@@ -256,7 +258,7 @@
 							<label
 								for="totp"
 								style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#8b8fa8; margin-bottom:6px; display:block;"
-							>TOTP Code</label>
+							>{$t('auth.twoFa')}</label>
 							<input
 								id="totp"
 								type="text"
@@ -276,7 +278,7 @@
 							disabled={loading}
 							style="background:#7c7cff; color:#05050f; border:none; border-radius:6px; padding:13px; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px; cursor:{loading ? 'wait' : 'pointer'}; opacity:{loading ? .8 : 1};"
 						>
-							{loading ? 'Verifying…' : 'Verify Code'}
+							{loading ? $t('auth.verifying') : $t('auth.verify')}
 						</button>
 
 						<button

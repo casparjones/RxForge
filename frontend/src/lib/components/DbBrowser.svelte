@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { api } from '$lib/api';
 	import { toast } from '$lib/stores/toast';
+	import { get } from 'svelte/store';
+	import { t } from '$lib/i18n';
 	import CodeEditor from './CodeEditor.svelte';
 	import ConfirmDialog from './ConfirmDialog.svelte';
 
@@ -59,13 +61,13 @@
 		saving = true; saveError = '';
 		try {
 			let parsed: any;
-			try { parsed = JSON.parse(editJson); } catch { saveError = 'Ungültiges JSON.'; saving = false; return; }
+			try { parsed = JSON.parse(editJson); } catch { saveError = 'Invalid JSON.'; saving = false; return; }
 			const res = await api.apps.db.updateDoc(app.id, selectedDoc._id, parsed);
 			const updated = { ...parsed, _rev: res.rev ?? parsed._rev };
 			selectedDoc = updated;
 			editJson = JSON.stringify(updated, null, 2);
 			docs = docs.map(d => d._id === updated._id ? updated : d);
-			toast.success('Dokument gespeichert.');
+			toast.success(get(t)('db.documentSaved'));
 		} catch (e: any) {
 			saveError = e.message;
 		} finally {
@@ -79,9 +81,9 @@
 			docs = docs.filter(d => d._id !== doc._id);
 			total = Math.max(0, total - 1);
 			if (selectedDoc?._id === doc._id) selectedDoc = null;
-			toast.success('Dokument gelöscht.');
+			toast.success(get(t)('db.documentDeleted'));
 		} catch (e: any) {
-			toast.error('Fehler: ' + e.message);
+			toast.error('Error: ' + e.message);
 		}
 	}
 
@@ -89,9 +91,9 @@
 		try {
 			const res = await api.apps.db.deleteAll(app.id);
 			docs = []; total = 0; page = 1; pages = 1; selectedDoc = null;
-			toast.success(`${res.deleted} Dokument(e) gelöscht.`);
+			toast.success(`${res.deleted} document(s) deleted.`);
 		} catch (e: any) {
-			toast.error('Fehler: ' + e.message);
+			toast.error('Error: ' + e.message);
 		}
 	}
 
@@ -119,29 +121,29 @@
 			style="color:var(--c-muted); background:transparent;"
 			onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.color='var(--c-text)'; (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,.06)'; }}
 			onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.color='var(--c-muted)'; (e.currentTarget as HTMLElement).style.background='transparent'; }}
-			aria-label="Schließen"
+			aria-label={$t('common.close')}
 		>
 			<svg class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
 		</button>
 		<span class="text-sm font-semibold" style="color:var(--c-text);">{app.name}</span>
 		<span style="color:var(--c-border);">/</span>
-		<span class="text-sm" style="color:var(--c-muted);">Datenbank</span>
+		<span class="text-sm" style="color:var(--c-muted);">{$t('db.database')}</span>
 		{#if !loading}
-			<span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(124,124,255,.12); color:#7c7cff;">{total} Dokumente</span>
+			<span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(124,124,255,.12); color:#7c7cff;">{$t('db.documents', { n: total })}</span>
 		{/if}
 		<div class="ml-auto flex items-center gap-2">
 			{#if docs.length > 0}
 				<button
 					onclick={() => openConfirm(
-						'Collection leeren',
-						`Alle ${total} Dokumente in „${app.name}" unwiderruflich löschen?`,
+						$t('db.clearCollection'),
+						$t('db.clearConfirm', { n: total, name: app.name }),
 						() => { confirmOpen = false; deleteAll(); }
 					)}
 					class="text-sm font-medium px-3 py-1.5 rounded-lg transition"
 					style="color:#f87171; border:1px solid rgba(248,113,113,.25); background:transparent;"
 					onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(248,113,113,.08)'; }}
 					onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}
-				>Collection leeren</button>
+				>{$t('db.clearCollection')}</button>
 			{/if}
 		</div>
 	</div>
@@ -161,12 +163,12 @@
 				{:else if listError}
 					<div class="p-6 text-center">
 						<p class="text-sm mb-2" style="color:#f87171;">{listError}</p>
-						<button onclick={() => loadPage(page)} class="text-xs" style="color:#7c7cff;">Wiederholen</button>
+						<button onclick={() => loadPage(page)} class="text-xs" style="color:#7c7cff;">{$t('common.retry')}</button>
 					</div>
 				{:else if docs.length === 0}
 					<div class="p-8 text-center">
-						<p class="text-sm" style="color:var(--c-muted);">Keine Dokumente.</p>
-						<p class="text-xs mt-1 opacity-60" style="color:var(--c-muted);">Daten erscheinen nach dem ersten Sync.</p>
+						<p class="text-sm" style="color:var(--c-muted);">{$t('db.noDocuments')}</p>
+						<p class="text-xs mt-1 opacity-60" style="color:var(--c-muted);">{$t('db.syncHint')}</p>
 					</div>
 				{:else}
 					{#each docs as doc (doc._id)}
@@ -185,7 +187,7 @@
 								<p class="text-xs truncate mt-0.5" style="color:var(--c-muted);">{preview(doc)}</p>
 							</div>
 							<button
-								onclick={(e) => { e.stopPropagation(); openConfirm('Dokument löschen', `„${doc._id}" löschen?`, () => { confirmOpen = false; deleteDoc(doc); }); }}
+								onclick={(e) => { e.stopPropagation(); openConfirm($t('db.deleteDocument'), $t('db.deleteDocConfirm', { id: doc._id }), () => { confirmOpen = false; deleteDoc(doc); }); }}
 								class="shrink-0 text-xs px-1.5 py-0.5 rounded opacity-0 transition"
 								style="color:#f87171; border:1px solid rgba(248,113,113,.3);"
 								onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.opacity='1'; (e.currentTarget as HTMLElement).style.background='rgba(248,113,113,.1)'; }}
@@ -204,14 +206,14 @@
 						disabled={page <= 1}
 						class="text-xs px-2 py-1 rounded disabled:opacity-40 transition"
 						style="border:1px solid var(--c-border); color:var(--c-muted);"
-					>← Zurück</button>
+					>{$t('db.paginationBack')}</button>
 					<span class="text-xs" style="color:var(--c-muted);">{page} / {pages}</span>
 					<button
 						onclick={() => loadPage(page + 1)}
 						disabled={page >= pages}
 						class="text-xs px-2 py-1 rounded disabled:opacity-40 transition"
 						style="border:1px solid var(--c-border); color:var(--c-muted);"
-					>Weiter →</button>
+					>{$t('db.paginationNext')}</button>
 				</div>
 			{/if}
 		</div>
@@ -223,12 +225,12 @@
 				<div class="flex items-center gap-3 px-5 py-3 shrink-0" style="border-bottom:1px solid var(--c-border); background:var(--c-surface);">
 					<span class="text-xs font-mono truncate flex-1" style="color:var(--c-muted);">{selectedDoc._id}</span>
 					<button
-						onclick={() => openConfirm('Dokument löschen', `„${selectedDoc._id}" löschen?`, () => { confirmOpen = false; deleteDoc(selectedDoc); })}
+						onclick={() => openConfirm($t('db.deleteDocument'), $t('db.deleteDocConfirm', { id: selectedDoc._id }), () => { confirmOpen = false; deleteDoc(selectedDoc); })}
 						class="text-sm font-medium px-3 py-1 rounded-lg transition"
 						style="color:#f87171; border:1px solid rgba(248,113,113,.25);"
 						onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(248,113,113,.08)'; }}
 						onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}
-					>Löschen</button>
+					>{$t('db.deleteDocument')}</button>
 					<button
 						onclick={saveDoc}
 						disabled={saving}
@@ -236,7 +238,7 @@
 						style="background:#7c7cff; color:#05050f;"
 						onmouseenter={(e) => { if (!saving) (e.currentTarget as HTMLElement).style.background='#9090ff'; }}
 						onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#7c7cff'; }}
-					>{saving ? 'Speichern…' : 'Speichern'}</button>
+					>{saving ? $t('common.saving') : $t('db.save')}</button>
 				</div>
 
 				{#if saveError}
@@ -261,7 +263,7 @@
 				<div class="flex-1 flex items-center justify-center" style="color:var(--c-muted);">
 					<div class="text-center">
 						<svg class="w-10 h-10 mx-auto mb-3 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-						<p class="text-sm">Dokument auswählen</p>
+						<p class="text-sm">{$t('db.selectDocument')}</p>
 					</div>
 				</div>
 			{/if}
@@ -273,7 +275,7 @@
 	open={confirmOpen}
 	title={confirmTitle}
 	message={confirmMessage}
-	confirmLabel="Löschen"
+	confirmLabel="Delete"
 	destructive={true}
 	onConfirm={confirmAction}
 	onCancel={() => { confirmOpen = false; }}

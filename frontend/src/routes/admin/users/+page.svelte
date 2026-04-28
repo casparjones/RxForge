@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { get } from 'svelte/store';
 	import { api } from '$lib/api';
 	import { toast } from '$lib/stores/toast';
+	import { t } from '$lib/i18n';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 
 	let users = $state<any[]>([]);
@@ -67,7 +69,7 @@
 			await api.admin.users.updateRole(selectedUser.id, editRole);
 			users = users.map(u => u.id === selectedUser.id ? { ...u, role: editRole } : u);
 			selectedUser = { ...selectedUser, role: editRole };
-			toast.success('Role updated.');
+			toast.success(get(t)('admin.userSaved'));
 		} catch (e: any) {
 			toast.error('Failed to update role: ' + e.message);
 		} finally {
@@ -82,7 +84,7 @@
 			await api.admin.users.updatePermissions(selectedUser.id, editPermissions);
 			users = users.map(u => u.id === selectedUser.id ? { ...u, permissions: editPermissions } : u);
 			selectedUser = { ...selectedUser, permissions: editPermissions };
-			toast.success('Permissions updated.');
+			toast.success(get(t)('admin.userSaved'));
 		} catch (e: any) {
 			toast.error('Failed to update permissions: ' + e.message);
 		} finally {
@@ -127,7 +129,7 @@
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
-		<h1 class="text-2xl font-bold" style="color:var(--c-text);">User Management</h1>
+		<h1 class="text-2xl font-bold" style="color:var(--c-text);">{$t('admin.users')}</h1>
 		<span class="text-sm" style="color:var(--c-muted);">{users.length} total users</span>
 	</div>
 
@@ -136,7 +138,7 @@
 		<input
 			type="search"
 			bind:value={search}
-			placeholder="Search by email or ID…"
+			placeholder={$t('admin.search')}
 			class="flex-1 min-w-48 px-4 py-2 rounded-lg text-sm outline-none"
 			style="background:var(--c-surface); border:1px solid var(--c-border); color:var(--c-text);"
 			onfocus={(e) => { (e.currentTarget as HTMLElement).style.borderColor='#f87171'; }}
@@ -147,7 +149,7 @@
 			class="px-4 py-2 rounded-lg text-sm outline-none"
 			style="background:var(--c-surface); border:1px solid var(--c-border); color:var(--c-text);"
 		>
-			<option value="all">All Roles</option>
+			<option value="all">{$t('admin.allRoles')}</option>
 			{#each ROLES as r}
 				<option value={r}>{r}</option>
 			{/each}
@@ -158,6 +160,7 @@
 	{#if loading}
 		<div class="flex justify-center py-16">
 			<div class="w-8 h-8 border-4 rounded-full animate-spin" style="border-color:rgba(248,113,113,.25); border-top-color:#f87171;"></div>
+			<p class="sr-only">{$t('common.loading')}</p>
 		</div>
 	{:else}
 		<div class="rounded-2xl overflow-hidden" style="background:var(--c-surface); border:1px solid var(--c-border);">
@@ -201,13 +204,13 @@
 									onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.color='#fca5a5'; }}
 									onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.color='#f87171'; }}
 								>
-									Manage
+									{$t('admin.impersonate')}
 								</button>
 							</td>
 						</tr>
 					{:else}
 						<tr>
-							<td colspan="4" class="px-6 py-12 text-center" style="color:var(--c-muted);">No users found</td>
+							<td colspan="4" class="px-6 py-12 text-center" style="color:var(--c-muted);">{$t('admin.noUsers')}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -226,7 +229,7 @@
 	></div>
 	<div class="fixed right-0 top-0 h-full w-full max-w-md z-50 overflow-y-auto shadow-2xl" style="background:var(--c-surface);">
 		<div class="p-6 flex items-center justify-between" style="border-bottom:1px solid var(--c-border);">
-			<h2 class="text-lg font-semibold" style="color:var(--c-text);">Manage User</h2>
+			<h2 class="text-lg font-semibold" style="color:var(--c-text);">{$t('admin.users')}</h2>
 			<button onclick={() => { slideoverOpen = false; }} class="text-2xl leading-none" style="color:var(--c-muted);">&times;</button>
 		</div>
 
@@ -238,7 +241,7 @@
 
 			<!-- Role -->
 			<div>
-				<label for="editRole" class="block text-sm font-medium mb-2" style="color:var(--c-text);">Role</label>
+				<label for="editRole" class="block text-sm font-medium mb-2" style="color:var(--c-text);">{$t('admin.role')}</label>
 				<div class="flex gap-2 items-center">
 					<select
 						id="editRole"
@@ -257,13 +260,13 @@
 						style="background:#f87171; color:#fff;"
 						onmouseenter={(e) => { if (!saving) (e.currentTarget as HTMLElement).style.background='#ef4444'; }}
 						onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#f87171'; }}
-					>Save</button>
+					>{saving ? $t('common.saving') : $t('common.save')}</button>
 				</div>
 			</div>
 
 			<!-- Permissions -->
 			<div>
-				<p class="text-sm font-medium mb-2" style="color:var(--c-text);">Permissions</p>
+				<p class="text-sm font-medium mb-2" style="color:var(--c-text);">{$t('admin.permissions')}</p>
 				<div class="space-y-2">
 					{#each ALL_PERMISSIONS as perm}
 						<label class="flex items-center gap-3 cursor-pointer">
@@ -284,14 +287,14 @@
 					style="background:#f87171; color:#fff;"
 					onmouseenter={(e) => { if (!saving) (e.currentTarget as HTMLElement).style.background='#ef4444'; }}
 					onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#f87171'; }}
-				>Save Permissions</button>
+				>{saving ? $t('common.saving') : $t('admin.saveChanges')}</button>
 			</div>
 
 			<!-- Apps -->
 			<div style="border-top:1px solid var(--c-border); padding-top:20px;">
 				<p class="text-sm font-medium mb-3" style="color:var(--c-text);">Apps</p>
 				{#if loadingApps}
-					<p class="text-sm" style="color:var(--c-muted);">Loading…</p>
+					<p class="text-sm" style="color:var(--c-muted);">{$t('common.loading')}</p>
 				{:else if userApps.length === 0}
 					<p class="text-sm" style="color:var(--c-muted);">No apps registered.</p>
 				{:else}

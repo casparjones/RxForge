@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
 	import { toast } from '$lib/stores/toast';
+	import { t } from '$lib/i18n';
 	import { Line } from 'svelte-chartjs';
 	import {
 		Chart as ChartJS,
@@ -21,7 +22,7 @@
 		return {
 			labels: stats.daily_requests.map((d: any) => d.date),
 			datasets: [{
-				label: 'Requests per Day',
+				label: $t('analytics.requestsPerDay'),
 				data: stats.daily_requests.map((d: any) => d.count),
 				borderColor: '#7c7cff',
 				backgroundColor: 'rgba(124,124,255,0.08)',
@@ -63,8 +64,8 @@
 <div class="space-y-6">
 	<div class="flex items-center justify-between flex-wrap gap-3">
 		<div>
-			<div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.15em; color:#7c7cff; margin-bottom:8px; text-transform:uppercase;">── Analytics</div>
-			<h1 class="text-2xl font-semibold" style="letter-spacing:-.02em;">App Analytics</h1>
+			<div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.15em; color:#7c7cff; margin-bottom:8px; text-transform:uppercase;">── {$t('analytics.sectionLabel')}</div>
+			<h1 class="text-2xl font-semibold" style="letter-spacing:-.02em;">{$t('analytics.title')}</h1>
 		</div>
 		{#if apps.length > 0}
 			<select
@@ -84,9 +85,10 @@
 		<div class="flex justify-center py-16">
 			<div class="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style="border-color:#7c7cff; border-top-color:transparent;"></div>
 		</div>
+		<p style="color:var(--c-muted); font-family:'JetBrains Mono',monospace; font-size:12px; text-align:center;">{$t('common.loading')}</p>
 	{:else if !stats}
 		<div class="text-center py-16 rounded-xl" style="background:var(--c-surface); border:1px solid var(--c-border);">
-			<p style="color:var(--c-muted); font-family:'JetBrains Mono',monospace; font-size:12px;">No analytics data available.</p>
+			<p style="color:var(--c-muted); font-family:'JetBrains Mono',monospace; font-size:12px;">{$t('analytics.noData')}</p>
 		</div>
 	{:else}
 		<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -112,7 +114,7 @@
 
 	{#if apps.length === 0 && !loading}
 		<div class="text-center py-16 rounded-xl" style="background:var(--c-surface); border:1px solid var(--c-border);">
-			<p style="color:var(--c-muted); font-size:14px;">No apps found. <a href="/dashboard/apps" style="color:#7c7cff;">Create an app</a> to see analytics.</p>
+			<p style="color:var(--c-muted); font-size:14px;">{$t('analytics.noData')} <a href="/dashboard/apps" style="color:#7c7cff;">{$t('dashboard.newApp')}</a></p>
 		</div>
 	{/if}
 </div>

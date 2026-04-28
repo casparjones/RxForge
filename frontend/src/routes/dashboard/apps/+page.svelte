@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { get } from 'svelte/store';
 	import { api } from '$lib/api';
 	import { parseOrigins } from '$lib/origins';
 	import { toast } from '$lib/stores/toast';
+	import { t } from '$lib/i18n';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import { goto } from '$app/navigation';
 	import DbBrowser from '$lib/components/DbBrowser.svelte';
@@ -102,7 +104,7 @@
 			showAddTokenModal = false;
 			revealedToken = { token: res.token, name: res.name };
 		} catch (e: any) {
-			toast.error('Fehler: ' + e.message);
+			toast.error('Error: ' + e.message);
 		} finally {
 			creatingToken = false;
 		}
@@ -114,9 +116,53 @@
 			appTokens[appId] = appTokens[appId].map(t =>
 				t.id === tokenId ? { ...t, revoked: true } : t
 			);
-			toast.success('Token widerrufen.');
+			toast.success(get(t)('tokens.revokedMsg'));
 		} catch (e: any) {
-			toast.error('Fehler: ' + e.message);
+			toast.error('Error: ' + e.message);
+		}
+	}
+
+	let editToken = $state<any | null>(null);
+	let editTokenName = $state('');
+	let editTokenOrigins = $state('');
+	let savingToken = $state(false);
+	let confirmRevokeToken = $state<any | null>(null);
+	let confirmPurgeToken = $state<any | null>(null);
+
+	async function openEditToken(tok: any) {
+		editToken = tok;
+		editTokenName = tok.name;
+		editTokenOrigins = (tok.allowed_origins ?? []).join('\n');
+	}
+
+	async function saveEditToken() {
+		if (!editToken) return;
+		savingToken = true;
+		try {
+			const origins = parseOrigins(editTokenOrigins);
+			await api.apps.tokens.update(editToken._appId, editToken.id, {
+				name: editTokenName.trim() || undefined,
+				allowed_origins: origins,
+			});
+			appTokens[editToken._appId] = appTokens[editToken._appId].map(t =>
+				t.id === editToken!.id ? { ...t, name: editTokenName, allowed_origins: origins } : t
+			);
+			editToken = null;
+			toast.success(get(t)('tokens.updated'));
+		} catch (e: any) {
+			toast.error('Error: ' + e.message);
+		} finally {
+			savingToken = false;
+		}
+	}
+
+	async function purgeToken(appId: string, tokenId: string) {
+		try {
+			await api.apps.tokens.purge(appId, tokenId);
+			appTokens[appId] = appTokens[appId].filter(t => t.id !== tokenId);
+			toast.success(get(t)('tokens.deleted'));
+		} catch (e: any) {
+			toast.error('Error: ' + e.message);
 		}
 	}
 
@@ -133,9 +179,9 @@
 				redirect_uris: redirectUris,
 			});
 			apps = apps.map(a => a.id === id ? { ...a, ...updated } : a);
-			toast.success('App gespeichert.');
+			toast.success(get(t)('apps.appSaved'));
 		} catch (e: any) {
-			toast.error('Fehler beim Speichern: ' + e.message);
+			toast.error('Error saving: ' + e.message);
 		} finally {
 			saving[id] = false;
 		}
@@ -190,7 +236,7 @@
 			await api.apps.delete(id);
 			apps = apps.filter(a => a.id !== id);
 			expandedApp = null;
-			toast.success('App deleted.');
+			toast.success(get(t)('apps.appDeleted'));
 		} catch (e: any) {
 			toast.error('Failed to delete app: ' + e.message);
 		}
@@ -368,7 +414,7 @@ Generate complete TypeScript code that:
 	<div class="flex items-center justify-between">
 		<div>
 			<div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.15em; color:#7c7cff; margin-bottom:8px; text-transform:uppercase;">── Apps</div>
-			<h1 class="text-2xl font-semibold" style="letter-spacing:-.02em; color:var(--c-text);">My Apps</h1>
+			<h1 class="text-2xl font-semibold" style="letter-spacing:-.02em; color:var(--c-text);">{$t('apps.title')}</h1>
 		</div>
 		<button
 			onclick={() => { showCreateModal = true; }}
@@ -376,7 +422,7 @@ Generate complete TypeScript code that:
 			style="background:#7c7cff; color:#05050f;"
 			onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='#9090ff'; }}
 			onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#7c7cff'; }}
-		>+ New App</button>
+		>{$t('apps.newApp')}</button>
 	</div>
 
 	{#if loading}
@@ -385,14 +431,14 @@ Generate complete TypeScript code that:
 		</div>
 	{:else if apps.length === 0}
 		<div class="text-center py-16 rounded-2xl" style="background:var(--c-surface); border:1px solid var(--c-border);">
-			<p class="mb-4" style="color:var(--c-muted);">No apps yet. Create your first app!</p>
+			<p class="mb-4" style="color:var(--c-muted);">{$t('apps.noApps')}</p>
 			<button
 				onclick={() => { showCreateModal = true; }}
 				class="px-4 py-2 rounded-lg text-sm font-semibold transition"
 				style="background:#7c7cff; color:#05050f;"
 				onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='#9090ff'; }}
 				onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#7c7cff'; }}
-			>Create App</button>
+			>{$t('apps.createApp')}</button>
 		</div>
 	{:else}
 		<div class="grid gap-4">
@@ -406,10 +452,10 @@ Generate complete TypeScript code that:
 								<div class="flex items-center gap-2">
 									<h2 class="text-lg font-semibold" style="color:var(--c-text);">{app.name}</h2>
 									<span class="text-xs px-2 py-0.5 rounded-full font-medium" style="{app.auth_type === 'token' ? 'background:rgba(251,191,36,.12); color:#fbbf24;' : 'background:rgba(124,124,255,.12); color:#7c7cff;'}">
-										{app.auth_type === 'token' ? 'Token' : 'OAuth'}
+										{app.auth_type === 'token' ? $t('apps.authToken') : $t('apps.authOAuth')}
 									</span>
 									{#if app.db_scope === 'shared'}
-										<span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background:rgba(248,113,113,.12); color:#f87171;">Shared DB</span>
+										<span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background:rgba(248,113,113,.12); color:#f87171;">{$t('apps.sharedDbBadge')}</span>
 									{/if}
 								</div>
 								<p class="text-sm mt-0.5 font-mono" style="color:var(--c-muted);">ID: {app.id}</p>
@@ -417,7 +463,7 @@ Generate complete TypeScript code that:
 							<div class="flex items-center gap-2 flex-wrap justify-end">
 								<button
 									onclick={() => openPromptModal(app)}
-									title="Claude-Prompt für RxDB-Integration generieren"
+									title={$t('apps.claudePromptTooltip')}
 									class="text-sm font-medium px-3 py-1.5 rounded-lg transition flex items-center gap-1.5"
 									style="color:#a78bfa; border:1px solid rgba(167,139,250,.25); background:rgba(167,139,250,.06);"
 									onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(167,139,250,.12)'; }}
@@ -426,7 +472,7 @@ Generate complete TypeScript code that:
 									<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
 										<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
 									</svg>
-									Claude Prompt
+									{$t('apps.claudePrompt')}
 								</button>
 								<button
 									onclick={() => { browseApp = app; }}
@@ -436,7 +482,7 @@ Generate complete TypeScript code that:
 									onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(52,211,153,.06)'; }}
 								>
 									<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-									Browse
+									{$t('common.browse')}
 								</button>
 								<button
 									onclick={() => goto(`/dashboard/apps/${app.id}/edit`)}
@@ -444,7 +490,7 @@ Generate complete TypeScript code that:
 									style="color:#7c7cff; border:1px solid rgba(124,124,255,.25); background:rgba(124,124,255,.06);"
 									onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(124,124,255,.12)'; }}
 									onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(124,124,255,.06)'; }}
-								>Bearbeiten</button>
+								>{$t('common.edit')}</button>
 							</div>
 						</div>
 					</div>
@@ -455,11 +501,11 @@ Generate complete TypeScript code that:
 
 							<!-- ── Editable settings ── -->
 							<div class="px-6 pt-5 pb-4 space-y-4">
-								<p class="text-xs font-semibold uppercase tracking-wide" style="color:var(--c-muted);">Einstellungen</p>
+								<p class="text-xs font-semibold uppercase tracking-wide" style="color:var(--c-muted);">{$t('apps.settings')}</p>
 
 								<!-- Name -->
 								<div>
-									<label for="name-{app.id}" class="block text-xs font-medium mb-1 uppercase tracking-wide" style="color:var(--c-muted);">App Name</label>
+									<label for="name-{app.id}" class="block text-xs font-medium mb-1 uppercase tracking-wide" style="color:var(--c-muted);">{$t('apps.appName')}</label>
 									<input
 										id="name-{app.id}"
 										type="text"
@@ -473,44 +519,44 @@ Generate complete TypeScript code that:
 
 								<!-- Auth Type -->
 								<div>
-									<p class="block text-xs font-medium mb-2 uppercase tracking-wide" style="color:var(--c-muted);">Auth Type</p>
+									<p class="block text-xs font-medium mb-2 uppercase tracking-wide" style="color:var(--c-muted);">{$t('apps.authType')}</p>
 									<div class="grid grid-cols-2 gap-3">
 										<label class="flex flex-col gap-1 rounded-lg p-3 cursor-pointer transition" style="{editAuthType[app.id] === 'oauth' ? 'border:1px solid #7c7cff; background:rgba(124,124,255,.06);' : 'border:1px solid var(--c-border); background:var(--c-surface);'}">
 											<input type="radio" bind:group={editAuthType[app.id]} value="oauth" class="sr-only" />
-											<span class="font-medium text-sm" style="color:var(--c-text);">OAuth 2.0</span>
-											<span class="text-xs" style="color:var(--c-muted);">Authorization Code — für Apps mit Backend</span>
+											<span class="font-medium text-sm" style="color:var(--c-text);">{$t('apps.authOAuth')}</span>
+											<span class="text-xs" style="color:var(--c-muted);">{$t('apps.authOAuthDescLong')}</span>
 										</label>
 										<label class="flex flex-col gap-1 rounded-lg p-3 cursor-pointer transition" style="{editAuthType[app.id] === 'token' ? 'border:1px solid #fbbf24; background:rgba(251,191,36,.06);' : 'border:1px solid var(--c-border); background:var(--c-surface);'}">
 											<input type="radio" bind:group={editAuthType[app.id]} value="token" class="sr-only" />
-											<span class="font-medium text-sm" style="color:var(--c-text);">Public Token</span>
-											<span class="text-xs" style="color:var(--c-muted);">API-Key — auch für SPAs &amp; statische Seiten</span>
+											<span class="font-medium text-sm" style="color:var(--c-text);">{$t('apps.authToken')}</span>
+											<span class="text-xs" style="color:var(--c-muted);">{$t('apps.authTokenDescLong')}</span>
 										</label>
 									</div>
 									{#if editAuthType[app.id] === 'token'}
 										<p class="mt-2 text-xs rounded-lg px-3 py-2" style="color:#fbbf24; background:rgba(251,191,36,.06); border:1px solid rgba(251,191,36,.2);">
-											⚠️ Der Token ist im JS-Code sichtbar. Aktiviere Origin-Binding beim Token, um Missbrauch einzuschränken.
+											{$t('apps.authTokenWarning')}
 										</p>
 									{/if}
 								</div>
 
 								<!-- DB Scope -->
 								<div>
-									<p class="block text-xs font-medium mb-2 uppercase tracking-wide" style="color:var(--c-muted);">Datenbank-Scope</p>
+									<p class="block text-xs font-medium mb-2 uppercase tracking-wide" style="color:var(--c-muted);">{$t('apps.dbScope')}</p>
 									<div class="grid grid-cols-2 gap-3">
 										<label class="flex flex-col gap-1 rounded-lg p-3 cursor-pointer transition" style="{editDbScope[app.id] === 'isolated' ? 'border:1px solid #7c7cff; background:rgba(124,124,255,.06);' : 'border:1px solid var(--c-border); background:var(--c-surface);'}">
 											<input type="radio" bind:group={editDbScope[app.id]} value="isolated" class="sr-only" />
-											<span class="font-medium text-sm" style="color:var(--c-text);">Isoliert</span>
-											<span class="text-xs" style="color:var(--c-muted);">Jeder Nutzer hat seine eigene DB</span>
+											<span class="font-medium text-sm" style="color:var(--c-text);">{$t('apps.dbIsolated')}</span>
+											<span class="text-xs" style="color:var(--c-muted);">{$t('apps.dbIsolatedDesc')}</span>
 										</label>
 										<label class="flex flex-col gap-1 rounded-lg p-3 cursor-pointer transition" style="{editDbScope[app.id] === 'shared' ? 'border:1px solid #f87171; background:rgba(248,113,113,.06);' : 'border:1px solid var(--c-border); background:var(--c-surface);'}">
 											<input type="radio" bind:group={editDbScope[app.id]} value="shared" class="sr-only" />
-											<span class="font-medium text-sm" style="color:var(--c-text);">Geteilt</span>
-											<span class="text-xs" style="color:var(--c-muted);">Alle Nutzer teilen eine DB</span>
+											<span class="font-medium text-sm" style="color:var(--c-text);">{$t('apps.dbShared')}</span>
+											<span class="text-xs" style="color:var(--c-muted);">{$t('apps.dbSharedDesc')}</span>
 										</label>
 									</div>
 									{#if editDbScope[app.id] === 'shared'}
 										<p class="mt-2 text-xs rounded-lg px-3 py-2" style="color:#f87171; background:rgba(248,113,113,.06); border:1px solid rgba(248,113,113,.2);">
-											⚠️ Im geteilten Scope sehen und schreiben alle authentifizierten Nutzer dieselbe Datenbank. Deine App ist selbst für Zugriffskontrolle auf Dokumentebene verantwortlich (z.B. <code>owner_id</code> prüfen).
+											{$t('apps.dbSharedWarningLong')}
 										</p>
 									{/if}
 								</div>
@@ -519,7 +565,7 @@ Generate complete TypeScript code that:
 								{#if editAuthType[app.id] === 'oauth'}
 								<div>
 									<label for="redirects-{app.id}" class="block text-xs font-medium mb-1 uppercase tracking-wide" style="color:var(--c-muted);">
-										Redirect URIs <span class="normal-case font-normal">(eine pro Zeile)</span>
+										{$t('apps.redirectUris')} <span class="normal-case font-normal">{$t('apps.redirectUrisHint')}</span>
 									</label>
 									<textarea
 										id="redirects-{app.id}"
@@ -538,15 +584,15 @@ Generate complete TypeScript code that:
 								<div class="flex items-center justify-between pt-1">
 									<button
 										onclick={() => openConfirm(
-											'App löschen',
-											`"${app.name}" unwiderruflich löschen?`,
+											$t('apps.deleteApp'),
+											$t('apps.deleteAppConfirm', { name: app.name }),
 											() => { deleteApp(app.id); confirmOpen = false; }
 										)}
 										class="text-sm font-medium px-3 py-1.5 rounded-lg transition"
 										style="color:#f87171; border:1px solid rgba(248,113,113,.25); background:transparent;"
 										onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(248,113,113,.08)'; }}
 										onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}
-									>App löschen</button>
+									>{$t('apps.deleteApp')}</button>
 									<button
 										onclick={() => saveApp(app)}
 										disabled={saving[app.id]}
@@ -554,7 +600,7 @@ Generate complete TypeScript code that:
 										style="background:#7c7cff; color:#05050f;"
 										onmouseenter={(e) => { if (!saving[app.id]) (e.currentTarget as HTMLElement).style.background='#9090ff'; }}
 										onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#7c7cff'; }}
-									>{saving[app.id] ? 'Speichern…' : 'Speichern'}</button>
+									>{saving[app.id] ? $t('apps.saving') : $t('common.save')}</button>
 								</div>
 							</div>
 
@@ -563,20 +609,20 @@ Generate complete TypeScript code that:
 							<!-- Token-App: Token-Verwaltung -->
 							<div class="px-6 py-4 space-y-3" style="border-top:1px solid var(--c-border);">
 								<div class="flex items-center justify-between">
-									<p class="text-xs font-semibold uppercase tracking-wide" style="color:var(--c-muted);">Public Tokens</p>
+									<p class="text-xs font-semibold uppercase tracking-wide" style="color:var(--c-muted);">{$t('tokens.publicTokens')}</p>
 									<button
 										onclick={() => openAddToken(app.id)}
 										class="text-xs font-semibold px-3 py-1.5 rounded-lg transition"
 										style="background:#fbbf24; color:#1a1200;"
 										onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='#fcd34d'; }}
 										onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#fbbf24'; }}
-									>+ Token hinzufügen</button>
+									>{$t('tokens.addToken')}</button>
 								</div>
 
 								{#if loadingTokens[app.id]}
-									<p class="text-sm" style="color:var(--c-muted);">Lädt…</p>
+									<p class="text-sm" style="color:var(--c-muted);">{$t('tokens.loading')}</p>
 								{:else if !appTokens[app.id]?.length}
-									<p class="text-sm py-2" style="color:var(--c-muted);">Noch kein Token. Erstelle einen um die App zu nutzen.</p>
+									<p class="text-sm py-2" style="color:var(--c-muted);">{$t('tokens.noTokens')}</p>
 								{:else}
 									<div class="space-y-2">
 										{#each appTokens[app.id] as tok (tok.id)}
@@ -586,29 +632,46 @@ Generate complete TypeScript code that:
 														<code class="text-xs font-mono" style="color:#fbbf24;">{tok.token_prefix}…</code>
 														<span class="text-xs font-medium" style="color:var(--c-text);">{tok.name}</span>
 														{#if tok.revoked}
-															<span class="text-xs px-1.5 py-0.5 rounded" style="background:rgba(248,113,113,.12); color:#f87171;">Widerrufen</span>
+															<span class="text-xs px-1.5 py-0.5 rounded" style="background:rgba(248,113,113,.12); color:#f87171;">{$t('tokens.revoked')}</span>
 														{:else}
-															<span class="text-xs px-1.5 py-0.5 rounded" style="background:rgba(74,222,128,.1); color:#4ade80;">Aktiv</span>
+															<span class="text-xs px-1.5 py-0.5 rounded" style="background:rgba(74,222,128,.1); color:#4ade80;">{$t('tokens.active')}</span>
 														{/if}
 													</div>
 													{#if tok.allowed_origins?.length}
-														<p class="text-xs mt-1 font-mono truncate" style="color:var(--c-muted);">Origins: {tok.allowed_origins.join(', ')}</p>
+														<p class="text-xs mt-1 font-mono truncate" style="color:var(--c-muted);">{$t('tokens.origins')} {tok.allowed_origins.join(', ')}</p>
 													{:else}
-														<p class="text-xs mt-1" style="color:var(--c-muted);">Alle Origins erlaubt</p>
+														<p class="text-xs mt-1" style="color:var(--c-muted);">{$t('tokens.allOriginsAllowed')}</p>
 													{/if}
 													{#if tok.last_used_at}
-														<p class="text-xs mt-0.5" style="color:var(--c-muted);">Zuletzt genutzt: {new Date(tok.last_used_at).toLocaleDateString('de')}</p>
+														<p class="text-xs mt-0.5" style="color:var(--c-muted);">{$t('tokens.lastUsed')} {new Date(tok.last_used_at).toLocaleDateString('en')}</p>
 													{/if}
 												</div>
-												{#if !tok.revoked}
-													<button
-														onclick={() => openConfirm('Token widerrufen', `"${tok.name}" unwiderruflich deaktivieren?`, () => { revokeToken(app.id, tok.id); confirmOpen = false; })}
-														class="text-xs px-2 py-1 rounded shrink-0 transition"
-														style="color:#f87171; border:1px solid rgba(248,113,113,.25); background:transparent;"
-														onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(248,113,113,.08)'; }}
-														onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}
-													>Widerrufen</button>
-												{/if}
+												<div class="flex gap-1.5 shrink-0">
+													{#if !tok.revoked}
+														<button
+															onclick={() => openEditToken({...tok, _appId: app.id})}
+															class="text-xs px-2 py-1 rounded transition"
+															style="color:#7c7cff; border:1px solid rgba(124,124,255,.25); background:transparent;"
+															onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(124,124,255,.08)'; }}
+															onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}
+														>{$t('tokens.edit')}</button>
+														<button
+															onclick={() => { confirmRevokeToken = {...tok, _appId: app.id}; }}
+															class="text-xs px-2 py-1 rounded transition"
+															style="color:#f87171; border:1px solid rgba(248,113,113,.25); background:transparent;"
+															onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(248,113,113,.08)'; }}
+															onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}
+														>{$t('tokens.revoke')}</button>
+													{:else}
+														<button
+															onclick={() => { confirmPurgeToken = {...tok, _appId: app.id}; }}
+															class="text-xs px-2 py-1 rounded transition"
+															style="color:#f87171; border:1px solid rgba(248,113,113,.25); background:transparent;"
+															onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(248,113,113,.08)'; }}
+															onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}
+														>{$t('tokens.delete')}</button>
+													{/if}
+												</div>
 											</div>
 										{/each}
 									</div>
@@ -617,27 +680,27 @@ Generate complete TypeScript code that:
 							{:else}
 							<!-- OAuth-App: Client ID + Secret -->
 							<div class="px-6 py-4 space-y-4" style="border-top:1px solid var(--c-border);">
-								<p class="text-xs font-semibold uppercase tracking-wide" style="color:var(--c-muted);">OAuth Credentials</p>
+								<p class="text-xs font-semibold uppercase tracking-wide" style="color:var(--c-muted);">{$t('apps.oauthCredentials')}</p>
 
 								<div>
-									<p class="block text-xs font-medium mb-1 uppercase tracking-wide" style="color:var(--c-muted);">Client ID</p>
+									<p class="block text-xs font-medium mb-1 uppercase tracking-wide" style="color:var(--c-muted);">{$t('apps.clientId')}</p>
 									<div class="flex items-center gap-2">
 										<code class="flex-1 text-sm rounded px-3 py-1.5 font-mono" style="background:var(--c-surface); border:1px solid var(--c-border); color:var(--c-text);">{app.client_id}</code>
-										<button onclick={() => copyToClipboard(app.client_id, 'Client ID')} class="text-xs rounded px-2 py-1.5 transition" style="color:#7c7cff; border:1px solid rgba(124,124,255,.25); background:transparent;" onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(124,124,255,.08)'; }} onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}>Copy</button>
+										<button onclick={() => copyToClipboard(app.client_id, $t('apps.clientId'))} class="text-xs rounded px-2 py-1.5 transition" style="color:#7c7cff; border:1px solid rgba(124,124,255,.25); background:transparent;" onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(124,124,255,.08)'; }} onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}>{$t('common.copy')}</button>
 									</div>
 								</div>
 
 								<div>
-									<p class="block text-xs font-medium mb-1 uppercase tracking-wide" style="color:var(--c-muted);">Client Secret</p>
+									<p class="block text-xs font-medium mb-1 uppercase tracking-wide" style="color:var(--c-muted);">{$t('apps.clientSecret')}</p>
 									<div class="flex items-center gap-2">
 										<code class="flex-1 text-sm rounded px-3 py-1.5 font-mono" style="background:var(--c-surface); border:1px solid var(--c-border); color:var(--c-text);">
 											{secretVisible[app.id] ? app.client_secret : '••••••••••••••••'}
 										</code>
 										<button onclick={() => { secretVisible = { ...secretVisible, [app.id]: !secretVisible[app.id] }; }} class="text-xs rounded px-2 py-1.5 transition" style="color:var(--c-muted); border:1px solid var(--c-border); background:transparent;" onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border-hi)'; }} onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border)'; }}>
-											{secretVisible[app.id] ? 'Hide' : 'Show'}
+											{secretVisible[app.id] ? $t('common.hide') : $t('common.show')}
 										</button>
-										<button onclick={() => copyToClipboard(app.client_secret, 'Client Secret')} class="text-xs rounded px-2 py-1.5 transition" style="color:#7c7cff; border:1px solid rgba(124,124,255,.25); background:transparent;" onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(124,124,255,.08)'; }} onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}>Copy</button>
-										<button onclick={() => openConfirm('Secret neu generieren', 'Das aktuelle Secret wird ungültig. Fortfahren?', () => { regenerateSecret(app.id); confirmOpen = false; })} class="text-xs rounded px-2 py-1.5 transition" style="color:#fb923c; border:1px solid rgba(251,146,60,.25); background:transparent;" onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(251,146,60,.08)'; }} onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}>Regenerate</button>
+										<button onclick={() => copyToClipboard(app.client_secret, $t('apps.clientSecret'))} class="text-xs rounded px-2 py-1.5 transition" style="color:#7c7cff; border:1px solid rgba(124,124,255,.25); background:transparent;" onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(124,124,255,.08)'; }} onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}>{$t('common.copy')}</button>
+										<button onclick={() => openConfirm($t('apps.regenerateSecret'), $t('apps.regenerateConfirm'), () => { regenerateSecret(app.id); confirmOpen = false; })} class="text-xs rounded px-2 py-1.5 transition" style="color:#fb923c; border:1px solid rgba(251,146,60,.25); background:transparent;" onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(251,146,60,.08)'; }} onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}>{$t('common.regenerate')}</button>
 									</div>
 								</div>
 							</div>
@@ -645,24 +708,24 @@ Generate complete TypeScript code that:
 
 							<!-- ── Stats ── -->
 							<div class="px-6 py-4" style="border-top:1px solid var(--c-border);">
-								<p class="text-xs font-semibold uppercase tracking-wide mb-3" style="color:var(--c-muted);">Statistik</p>
+								<p class="text-xs font-semibold uppercase tracking-wide mb-3" style="color:var(--c-muted);">{$t('apps.stats')}</p>
 								{#if appStats[app.id] === undefined}
-									<p class="text-sm" style="color:var(--c-muted);">Lädt…</p>
+									<p class="text-sm" style="color:var(--c-muted);">{$t('common.loading')}</p>
 								{:else if appStats[app.id] === null}
-									<p class="text-sm" style="color:var(--c-muted);">Keine Statistik verfügbar</p>
+									<p class="text-sm" style="color:var(--c-muted);">{$t('apps.noStats')}</p>
 								{:else}
 									<div class="grid grid-cols-3 gap-3">
 										<div class="rounded-lg p-3 text-center" style="background:var(--c-surface); border:1px solid var(--c-border);">
 											<p class="text-2xl font-bold" style="color:#7c7cff;">{appStats[app.id].requests_today ?? 0}</p>
-											<p class="text-xs mt-0.5" style="color:var(--c-muted);">Heute</p>
+											<p class="text-xs mt-0.5" style="color:var(--c-muted);">{$t('common.today')}</p>
 										</div>
 										<div class="rounded-lg p-3 text-center" style="background:var(--c-surface); border:1px solid var(--c-border);">
 											<p class="text-2xl font-bold" style="color:#7c7cff;">{appStats[app.id].requests_7d ?? 0}</p>
-											<p class="text-xs mt-0.5" style="color:var(--c-muted);">7 Tage</p>
+											<p class="text-xs mt-0.5" style="color:var(--c-muted);">{$t('apps.days7')}</p>
 										</div>
 										<div class="rounded-lg p-3 text-center" style="background:var(--c-surface); border:1px solid var(--c-border);">
 											<p class="text-2xl font-bold" style="color:#7c7cff;">{appStats[app.id].requests_30d ?? 0}</p>
-											<p class="text-xs mt-0.5" style="color:var(--c-muted);">30 Tage</p>
+											<p class="text-xs mt-0.5" style="color:var(--c-muted);">{$t('apps.days30')}</p>
 										</div>
 									</div>
 								{/if}
@@ -679,10 +742,10 @@ Generate complete TypeScript code that:
 {#if showCreateModal}
 	<div class="fixed inset-0 z-40 flex items-center justify-center p-4" style="background:rgba(0,0,0,.6);" onclick={() => { showCreateModal = false; }} role="presentation">
 		<div class="rounded-2xl shadow-2xl max-w-md w-full p-6" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="dialog" tabindex="-1" aria-modal="true" style="background:var(--c-surface); border:1px solid var(--c-border);">
-			<h2 class="text-xl font-semibold mb-5" style="color:var(--c-text);">Neue App erstellen</h2>
+			<h2 class="text-xl font-semibold mb-5" style="color:var(--c-text);">{$t('apps.createNewApp')}</h2>
 			<form onsubmit={(e) => { e.preventDefault(); createApp(); }} class="space-y-4">
 				<div>
-					<label for="appName" class="block text-sm font-medium mb-1" style="color:var(--c-text);">App Name</label>
+					<label for="appName" class="block text-sm font-medium mb-1" style="color:var(--c-text);">{$t('apps.appName')}</label>
 					<input id="appName" type="text" bind:value={newAppName} required class="w-full px-4 py-2.5 rounded-lg outline-none" style="background:var(--c-surface-2); border:1px solid var(--c-border); color:var(--c-text);" placeholder="My App"
 						onfocus={(e) => { (e.currentTarget as HTMLElement).style.borderColor='#7c7cff'; }}
 						onblur={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border)'; }}
@@ -690,43 +753,43 @@ Generate complete TypeScript code that:
 				</div>
 
 				<div>
-					<p class="block text-sm font-medium mb-2" style="color:var(--c-text);">Auth Type</p>
+					<p class="block text-sm font-medium mb-2" style="color:var(--c-text);">{$t('apps.authType')}</p>
 					<div class="grid grid-cols-2 gap-3">
 						<label class="flex flex-col gap-1 rounded-lg p-3 cursor-pointer transition" style="{newAppAuthType === 'oauth' ? 'border:1px solid #7c7cff; background:rgba(124,124,255,.06);' : 'border:1px solid var(--c-border); background:var(--c-surface-2);'}">
 							<input type="radio" bind:group={newAppAuthType} value="oauth" class="sr-only" />
-							<span class="font-medium text-sm" style="color:var(--c-text);">OAuth 2.0</span>
-							<span class="text-xs" style="color:var(--c-muted);">Authorization Code — für Apps mit eigenem Backend</span>
+							<span class="font-medium text-sm" style="color:var(--c-text);">{$t('apps.authOAuth')}</span>
+							<span class="text-xs" style="color:var(--c-muted);">{$t('apps.authOAuthDescLong')}</span>
 						</label>
 						<label class="flex flex-col gap-1 rounded-lg p-3 cursor-pointer transition" style="{newAppAuthType === 'token' ? 'border:1px solid #fbbf24; background:rgba(251,191,36,.06);' : 'border:1px solid var(--c-border); background:var(--c-surface-2);'}">
 							<input type="radio" bind:group={newAppAuthType} value="token" class="sr-only" />
-							<span class="font-medium text-sm" style="color:var(--c-text);">Public Token</span>
-							<span class="text-xs" style="color:var(--c-muted);">API-Key — auch für SPAs &amp; statische Seiten</span>
+							<span class="font-medium text-sm" style="color:var(--c-text);">{$t('apps.authToken')}</span>
+							<span class="text-xs" style="color:var(--c-muted);">{$t('apps.authTokenDescLong')}</span>
 						</label>
 					</div>
 					{#if newAppAuthType === 'token'}
 						<p class="mt-2 text-xs rounded-lg px-3 py-2" style="color:#fbbf24; background:rgba(251,191,36,.06); border:1px solid rgba(251,191,36,.2);">
-							⚠️ Der Token ist im JS-Code sichtbar. Aktiviere Origin-Binding beim Token, um Missbrauch einzuschränken.
+							{$t('apps.authTokenWarning')}
 						</p>
 					{/if}
 				</div>
 
 				<div>
-					<p class="block text-sm font-medium mb-2" style="color:var(--c-text);">Datenbank-Scope</p>
+					<p class="block text-sm font-medium mb-2" style="color:var(--c-text);">{$t('apps.dbScope')}</p>
 					<div class="grid grid-cols-2 gap-3">
 						<label class="flex flex-col gap-1 rounded-lg p-3 cursor-pointer transition" style="{newAppDbScope === 'isolated' ? 'border:1px solid #7c7cff; background:rgba(124,124,255,.06);' : 'border:1px solid var(--c-border); background:var(--c-surface-2);'}">
 							<input type="radio" bind:group={newAppDbScope} value="isolated" class="sr-only" />
-							<span class="font-medium text-sm" style="color:var(--c-text);">Isoliert</span>
-							<span class="text-xs" style="color:var(--c-muted);">Jeder Nutzer hat seine eigene DB</span>
+							<span class="font-medium text-sm" style="color:var(--c-text);">{$t('apps.dbIsolated')}</span>
+							<span class="text-xs" style="color:var(--c-muted);">{$t('apps.dbIsolatedDesc')}</span>
 						</label>
 						<label class="flex flex-col gap-1 rounded-lg p-3 cursor-pointer transition" style="{newAppDbScope === 'shared' ? 'border:1px solid #f87171; background:rgba(248,113,113,.06);' : 'border:1px solid var(--c-border); background:var(--c-surface-2);'}">
 							<input type="radio" bind:group={newAppDbScope} value="shared" class="sr-only" />
-							<span class="font-medium text-sm" style="color:var(--c-text);">Geteilt</span>
-							<span class="text-xs" style="color:var(--c-muted);">Alle Nutzer teilen eine DB</span>
+							<span class="font-medium text-sm" style="color:var(--c-text);">{$t('apps.dbShared')}</span>
+							<span class="text-xs" style="color:var(--c-muted);">{$t('apps.dbSharedDesc')}</span>
 						</label>
 					</div>
 					{#if newAppDbScope === 'shared'}
 						<p class="mt-2 text-xs rounded-lg px-3 py-2" style="color:#f87171; background:rgba(248,113,113,.06); border:1px solid rgba(248,113,113,.2);">
-							⚠️ Im geteilten Scope sehen und schreiben alle authentifizierten Nutzer dieselbe Datenbank. Deine App ist selbst für Zugriffskontrolle auf Dokumentebene verantwortlich.
+							{$t('apps.dbSharedWarning')}
 						</p>
 					{/if}
 				</div>
@@ -734,7 +797,7 @@ Generate complete TypeScript code that:
 				{#if newAppAuthType === 'oauth'}
 				<div>
 					<label for="redirectUris" class="block text-sm font-medium mb-1" style="color:var(--c-text);">
-						Redirect URIs <span style="color:var(--c-muted); font-weight:normal;">(eine pro Zeile)</span>
+						{$t('apps.redirectUris')} <span style="color:var(--c-muted); font-weight:normal;">{$t('apps.redirectUrisHint')}</span>
 					</label>
 					<textarea id="redirectUris" bind:value={newAppRedirects} rows="3" class="w-full px-4 py-2.5 rounded-lg outline-none resize-none" style="background:var(--c-surface-2); border:1px solid var(--c-border); color:var(--c-text); font-family:'JetBrains Mono',monospace; font-size:12px;" placeholder="https://myapp.com/callback"
 						onfocus={(e) => { (e.currentTarget as HTMLElement).style.borderColor='#7c7cff'; }}
@@ -747,11 +810,11 @@ Generate complete TypeScript code that:
 					<button type="button" onclick={() => { showCreateModal = false; }} class="px-4 py-2 text-sm font-medium rounded-lg transition" style="border:1px solid var(--c-border); color:var(--c-muted); background:transparent;"
 						onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border-hi)'; (e.currentTarget as HTMLElement).style.color='var(--c-text)'; }}
 						onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border)'; (e.currentTarget as HTMLElement).style.color='var(--c-muted)'; }}
-					>Abbrechen</button>
+					>{$t('apps.cancel')}</button>
 					<button type="submit" disabled={creating} class="px-4 py-2 text-sm font-semibold disabled:opacity-60 rounded-lg transition" style="background:#7c7cff; color:#05050f;"
 						onmouseenter={(e) => { if (!creating) (e.currentTarget as HTMLElement).style.background='#9090ff'; }}
 						onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#7c7cff'; }}
-					>{creating ? 'Erstelle…' : 'App erstellen'}</button>
+					>{creating ? $t('apps.saving') : $t('apps.createApp')}</button>
 				</div>
 			</form>
 		</div>
@@ -764,10 +827,10 @@ Generate complete TypeScript code that:
 		<div class="rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[85vh]" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="dialog" tabindex="-1" aria-modal="true" style="background:var(--c-surface); border:1px solid var(--c-border);">
 			<div class="px-6 py-4 flex items-center justify-between shrink-0" style="border-bottom:1px solid var(--c-border);">
 				<div>
-					<h2 class="text-lg font-semibold" style="color:var(--c-text);">Claude Integration Prompt</h2>
-					<p class="text-sm mt-0.5" style="color:var(--c-muted);">In Claude einfügen, um RxDB-Integrationscode zu erhalten.</p>
+					<h2 class="text-lg font-semibold" style="color:var(--c-text);">{$t('apps.promptModal.title')}</h2>
+					<p class="text-sm mt-0.5" style="color:var(--c-muted);">{$t('apps.promptModal.hint')}</p>
 				</div>
-				<button onclick={() => { promptModalOpen = false; }} class="p-1 rounded-lg" style="color:var(--c-muted);" aria-label="Schließen">
+				<button onclick={() => { promptModalOpen = false; }} class="p-1 rounded-lg" style="color:var(--c-muted);" aria-label="Close">
 					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
 				</button>
 			</div>
@@ -775,18 +838,18 @@ Generate complete TypeScript code that:
 				<textarea readonly value={promptText} class="w-full h-full min-h-64 text-sm font-mono rounded-lg p-4 resize-none outline-none leading-relaxed" style="background:var(--c-surface-2); border:1px solid var(--c-border); color:var(--c-text);" onclick={(e) => (e.target as HTMLTextAreaElement).select()}></textarea>
 			</div>
 			<div class="px-6 py-4 flex items-center justify-between shrink-0" style="border-top:1px solid var(--c-border);">
-				<p class="text-xs" style="color:var(--c-muted);">Klicken zum Auswählen</p>
+				<p class="text-xs" style="color:var(--c-muted);">Click to select</p>
 				<div class="flex gap-2">
 					<button onclick={() => { promptModalOpen = false; }} class="px-4 py-2 text-sm font-medium rounded-lg transition" style="border:1px solid var(--c-border); color:var(--c-muted); background:transparent;"
 						onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border-hi)'; }}
 						onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border)'; }}
-					>Schließen</button>
+					>{$t('apps.promptModal.close')}</button>
 					<button onclick={copyPrompt} class="px-4 py-2 text-sm font-medium rounded-lg transition flex items-center gap-2" style="background:#a78bfa; color:#fff;"
 						onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='#c4b5fd'; }}
 						onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#a78bfa'; }}
 					>
 						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-						Prompt kopieren
+						{$t('apps.promptModal.copy')}
 					</button>
 				</div>
 			</div>
@@ -794,15 +857,52 @@ Generate complete TypeScript code that:
 	</div>
 {/if}
 
+<!-- Edit Token Modal -->
+{#if editToken}
+<div class="fixed inset-0 z-40 flex items-center justify-center p-4" style="background:rgba(0,0,0,.6);" onclick={() => { editToken = null; }} role="presentation">
+    <div class="rounded-2xl shadow-2xl max-w-md w-full p-6" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="dialog" tabindex="-1" aria-modal="true" style="background:var(--c-surface); border:1px solid var(--c-border);">
+        <h2 class="text-xl font-semibold mb-5" style="color:var(--c-text);">{$t('tokens.editTitle')}</h2>
+        <form onsubmit={(e) => { e.preventDefault(); saveEditToken(); }} class="space-y-4">
+            <div>
+                <label for="editTokenName" class="block text-sm font-medium mb-1" style="color:var(--c-text);">{$t('tokens.name')}</label>
+                <input id="editTokenName" type="text" bind:value={editTokenName} class="w-full px-4 py-2.5 rounded-lg outline-none" style="background:var(--c-surface-2); border:1px solid var(--c-border); color:var(--c-text);"
+                    onfocus={(e) => { (e.currentTarget as HTMLElement).style.borderColor='#fbbf24'; }}
+                    onblur={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border)'; }}
+                />
+            </div>
+            <div>
+                <label for="editTokenOrigins" class="block text-sm font-medium mb-1" style="color:var(--c-text);">
+                    {$t('tokens.allowedOrigins')} <span style="color:var(--c-muted); font-weight:normal;">{$t('tokens.originsHint')}</span>
+                </label>
+                <textarea id="editTokenOrigins" bind:value={editTokenOrigins} rows="3" class="w-full px-4 py-2.5 rounded-lg outline-none resize-none" style="background:var(--c-surface-2); border:1px solid var(--c-border); color:var(--c-text); font-family:'JetBrains Mono',monospace; font-size:12px;" placeholder="https://myapp.com"
+                    onfocus={(e) => { (e.currentTarget as HTMLElement).style.borderColor='#fbbf24'; }}
+                    onblur={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border)'; }}
+                ></textarea>
+            </div>
+            <div class="flex gap-3 justify-end pt-2">
+                <button type="button" onclick={() => { editToken = null; }} class="px-4 py-2 text-sm font-medium rounded-lg transition" style="border:1px solid var(--c-border); color:var(--c-muted); background:transparent;"
+                    onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border-hi)'; (e.currentTarget as HTMLElement).style.color='var(--c-text)'; }}
+                    onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border)'; (e.currentTarget as HTMLElement).style.color='var(--c-muted)'; }}
+                >{$t('common.cancel')}</button>
+                <button type="submit" disabled={savingToken} class="px-4 py-2 text-sm font-semibold disabled:opacity-60 rounded-lg transition" style="background:#fbbf24; color:#1a1200;"
+                    onmouseenter={(e) => { if (!savingToken) (e.currentTarget as HTMLElement).style.background='#fcd34d'; }}
+                    onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#fbbf24'; }}
+                >{savingToken ? $t('tokens.savingToken') : $t('tokens.saveToken')}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{/if}
+
 <!-- Add Token Modal -->
 {#if showAddTokenModal && addTokenForApp}
 	<div class="fixed inset-0 z-40 flex items-center justify-center p-4" style="background:rgba(0,0,0,.6);" onclick={() => { showAddTokenModal = false; }} role="presentation">
 		<div class="rounded-2xl shadow-2xl max-w-md w-full p-6" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="dialog" tabindex="-1" aria-modal="true" style="background:var(--c-surface); border:1px solid var(--c-border);">
-			<h2 class="text-xl font-semibold mb-5" style="color:var(--c-text);">Token hinzufügen</h2>
+			<h2 class="text-xl font-semibold mb-5" style="color:var(--c-text);">{$t('tokens.addTokenTitle')}</h2>
 			<form onsubmit={(e) => { e.preventDefault(); createToken(); }} class="space-y-4">
 				<div>
 					<label for="tokenName" class="block text-sm font-medium mb-1" style="color:var(--c-text);">
-						Name <span style="color:var(--c-muted); font-weight:normal;">(optional)</span>
+						{$t('tokens.name')} <span style="color:var(--c-muted); font-weight:normal;">(optional)</span>
 					</label>
 					<input
 						id="tokenName"
@@ -810,7 +910,7 @@ Generate complete TypeScript code that:
 						bind:value={newTokenName}
 						class="w-full px-4 py-2.5 rounded-lg outline-none"
 						style="background:var(--c-surface-2); border:1px solid var(--c-border); color:var(--c-text);"
-						placeholder="z.B. Produktion, Dev, …"
+						placeholder={$t('tokens.namePlaceholder')}
 						onfocus={(e) => { (e.currentTarget as HTMLElement).style.borderColor='#fbbf24'; }}
 						onblur={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border)'; }}
 					/>
@@ -818,7 +918,7 @@ Generate complete TypeScript code that:
 
 				<div>
 					<label for="tokenOrigins" class="block text-sm font-medium mb-1" style="color:var(--c-text);">
-						Erlaubte Origins <span style="color:var(--c-muted); font-weight:normal;">(eine pro Zeile, leer = alle)</span>
+						{$t('tokens.allowedOrigins')} <span style="color:var(--c-muted); font-weight:normal;">{$t('tokens.originsHint')}</span>
 					</label>
 					<textarea
 						id="tokenOrigins"
@@ -830,7 +930,7 @@ Generate complete TypeScript code that:
 						onfocus={(e) => { (e.currentTarget as HTMLElement).style.borderColor='#fbbf24'; }}
 						onblur={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border)'; }}
 					></textarea>
-					<p class="text-xs mt-1" style="color:var(--c-muted);">Origin-Binding verhindert Missbrauch, wenn der Token öffentlich sichtbar ist.</p>
+					<p class="text-xs mt-1" style="color:var(--c-muted);">Origin binding prevents misuse when the token is publicly visible.</p>
 				</div>
 
 				<div class="flex gap-3 justify-end pt-2">
@@ -841,7 +941,7 @@ Generate complete TypeScript code that:
 						style="border:1px solid var(--c-border); color:var(--c-muted); background:transparent;"
 						onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border-hi)'; (e.currentTarget as HTMLElement).style.color='var(--c-text)'; }}
 						onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.borderColor='var(--c-border)'; (e.currentTarget as HTMLElement).style.color='var(--c-muted)'; }}
-					>Abbrechen</button>
+					>{$t('common.cancel')}</button>
 					<button
 						type="submit"
 						disabled={creatingToken}
@@ -849,7 +949,7 @@ Generate complete TypeScript code that:
 						style="background:#fbbf24; color:#1a1200;"
 						onmouseenter={(e) => { if (!creatingToken) (e.currentTarget as HTMLElement).style.background='#fcd34d'; }}
 						onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#fbbf24'; }}
-					>{creatingToken ? 'Erstelle…' : 'Token erstellen'}</button>
+					>{creatingToken ? $t('tokens.savingToken') : $t('tokens.addToken')}</button>
 				</div>
 			</form>
 		</div>
@@ -865,26 +965,26 @@ Generate complete TypeScript code that:
 					<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
 				</div>
 				<div>
-					<h2 class="text-lg font-semibold" style="color:var(--c-text);">Token wurde erstellt</h2>
-					<p class="text-sm" style="color:#fbbf24;">Wird nur jetzt einmal angezeigt — bitte sofort kopieren!</p>
+					<h2 class="text-lg font-semibold" style="color:var(--c-text);">{$t('apps.revealToken.title')}</h2>
+					<p class="text-sm" style="color:#fbbf24;">{$t('apps.revealToken.hint')}</p>
 				</div>
 			</div>
 
-			<p class="text-sm mb-2" style="color:var(--c-muted);">Token: <span class="font-medium" style="color:var(--c-text);">{revealedToken.name || '(ohne Name)'}</span></p>
+			<p class="text-sm mb-2" style="color:var(--c-muted);">Token: <span class="font-medium" style="color:var(--c-text);">{revealedToken.name || '(unnamed)'}</span></p>
 
 			<div class="rounded-lg p-4 mb-4 flex items-center gap-3" style="background:var(--c-surface-2); border:1px solid rgba(251,191,36,.3);">
 				<code class="flex-1 text-sm font-mono break-all select-all" style="color:#fbbf24;">{revealedToken.token}</code>
 				<button
-					onclick={() => { navigator.clipboard.writeText(revealedToken!.token).then(() => toast.success('Token kopiert!')); }}
+					onclick={() => { navigator.clipboard.writeText(revealedToken!.token).then(() => toast.success('Token copied!')); }}
 					class="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg transition"
 					style="background:#fbbf24; color:#1a1200;"
 					onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='#fcd34d'; }}
 					onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#fbbf24'; }}
-				>Kopieren</button>
+				>{$t('apps.revealToken.copy')}</button>
 			</div>
 
 			<p class="text-xs mb-5 rounded-lg px-3 py-2" style="color:#f87171; background:rgba(248,113,113,.06); border:1px solid rgba(248,113,113,.2);">
-				Dieser Token wird nicht erneut angezeigt. Falls du ihn verlierst, musst du einen neuen erstellen und den alten widerrufen.
+				This token will not be shown again. If you lose it, create a new one and revoke the old.
 			</p>
 
 			<div class="flex justify-end">
@@ -894,7 +994,7 @@ Generate complete TypeScript code that:
 					style="background:#7c7cff; color:#05050f;"
 					onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='#9090ff'; }}
 					onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#7c7cff'; }}
-				>Verstanden, Token gesichert</button>
+				>{$t('apps.revealToken.close')}</button>
 			</div>
 		</div>
 	</div>
@@ -904,10 +1004,30 @@ Generate complete TypeScript code that:
 	open={confirmOpen}
 	title={confirmTitle}
 	message={confirmMessage}
-	confirmLabel="Bestätigen"
+	confirmLabel="Confirm"
 	destructive={true}
 	onConfirm={confirmAction}
 	onCancel={() => { confirmOpen = false; }}
+/>
+
+<ConfirmDialog
+	open={!!confirmRevokeToken}
+	title={$t('tokens.revokeTitle')}
+	message={$t('tokens.revokeConfirm', { name: confirmRevokeToken?.name ?? '' })}
+	confirmLabel={$t('tokens.revoke')}
+	destructive={true}
+	onConfirm={() => { const tok = confirmRevokeToken!; confirmRevokeToken = null; revokeToken(tok._appId, tok.id); }}
+	onCancel={() => { confirmRevokeToken = null; }}
+/>
+
+<ConfirmDialog
+	open={!!confirmPurgeToken}
+	title={$t('tokens.deleteTitle')}
+	message={$t('tokens.deleteConfirm', { name: confirmPurgeToken?.name ?? '' })}
+	confirmLabel={$t('tokens.delete')}
+	destructive={true}
+	onConfirm={() => { const tok = confirmPurgeToken!; confirmPurgeToken = null; purgeToken(tok._appId, tok.id); }}
+	onCancel={() => { confirmPurgeToken = null; }}
 />
 
 {#if browseApp}

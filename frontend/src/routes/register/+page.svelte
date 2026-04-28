@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { get } from 'svelte/store';
 	import { auth } from '$lib/stores/auth';
 	import { api } from '$lib/api';
 	import { toast } from '$lib/stores/toast';
+	import { t } from '$lib/i18n';
 	import RxLogo from '$lib/components/RxLogo.svelte';
 
 	let email = $state('');
@@ -20,15 +22,15 @@
 
 	async function handleRegister() {
 		error = '';
-		if (!email || !password || !passwordConfirm) { error = 'All fields are required.'; return; }
-		if (!email.includes('@')) { error = 'Enter a valid email address.'; return; }
-		if (password.length < 8) { error = 'Password must be at least 8 characters.'; return; }
-		if (password !== passwordConfirm) { error = 'Passwords do not match.'; return; }
+		if (!email || !password || !passwordConfirm) { error = get(t)('auth.allFieldsRequired'); return; }
+		if (!email.includes('@')) { error = get(t)('auth.invalidEmail'); return; }
+		if (password.length < 8) { error = get(t)('auth.passwordMinLength'); return; }
+		if (password !== passwordConfirm) { error = get(t)('auth.passwordMismatch'); return; }
 		loading = true;
 		try {
 			const res = await api.auth.register(email, password, inviteCode || undefined);
 			auth.login(res.token, res.user);
-			toast.success('Account created! Welcome to RxForge.');
+			toast.success(get(t)('auth.accountCreated'));
 			goto('/dashboard');
 		} catch (e: any) {
 			error = e.message || 'Registration failed.';
@@ -98,7 +100,7 @@
 					<div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#7c7cff; letter-spacing:.15em; margin-bottom:10px;">
 						─ REGISTER
 					</div>
-					<div style="font-size:24px; font-weight:600; letter-spacing:-.02em;">Create account</div>
+					<div style="font-size:24px; font-weight:600; letter-spacing:-.02em;">{$t('auth.createAccount')}</div>
 					<div style="color:#8b8fa8; font-size:13px; margin-top:5px;">
 						Your CouchDB instance is provisioned on first sync.
 					</div>
@@ -112,7 +114,7 @@
 					{/if}
 
 					<div>
-						<label for="email" style={labelStyle}>Email</label>
+						<label for="email" style={labelStyle}>{$t('auth.email')}</label>
 						<input
 							id="email" type="email" bind:value={email} required
 							placeholder="dev@example.com"
@@ -123,7 +125,7 @@
 					</div>
 
 					<div>
-						<label for="password" style={labelStyle}>Password</label>
+						<label for="password" style={labelStyle}>{$t('auth.password')}</label>
 						<input
 							id="password" type="password" bind:value={password} required
 							placeholder="Min. 8 characters"
@@ -134,7 +136,7 @@
 					</div>
 
 					<div>
-						<label for="confirm" style={labelStyle}>Confirm Password</label>
+						<label for="confirm" style={labelStyle}>{$t('auth.passwordConfirm')}</label>
 						<input
 							id="confirm" type="password" bind:value={passwordConfirm} required
 							placeholder="••••••••"
@@ -149,7 +151,7 @@
 
 					{#if inviteRequired}
 					<div>
-						<label for="invite" style={labelStyle}>Invite Code</label>
+						<label for="invite" style={labelStyle}>{$t('auth.inviteCode')}</label>
 						<input
 							id="invite" type="text" bind:value={inviteCode} required
 							placeholder="Enter invite code"
@@ -165,12 +167,12 @@
 						disabled={loading}
 						style="background:{loading ? '#5a5aee' : '#7c7cff'}; color:#05050f; border:none; border-radius:6px; padding:13px; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px; cursor:{loading ? 'wait' : 'pointer'}; transition:background 120ms; opacity:{loading ? .8 : 1}; margin-top:2px;"
 					>
-						{loading ? 'Creating account…' : 'Create Account'}
+						{loading ? $t('auth.creating') : $t('auth.createAccount')}
 					</button>
 				</form>
 
 				<div class="mt-5 text-center" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8b8fa8;">
-					Already have an account? <a href="/login" style="color:#eef0fa; text-decoration:none; border-bottom:1px dotted #8b8fa8;">Sign in</a>
+					{$t('auth.haveAccount')} <a href="/login" style="color:#eef0fa; text-decoration:none; border-bottom:1px dotted #8b8fa8;">{$t('auth.signIn')}</a>
 				</div>
 			</div>
 		</div>

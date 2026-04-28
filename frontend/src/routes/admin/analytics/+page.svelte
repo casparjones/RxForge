@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
 	import { toast } from '$lib/stores/toast';
+	import { t } from '$lib/i18n';
 	import { Line, Bar } from 'svelte-chartjs';
 	import {
 		Chart as ChartJS,
@@ -27,7 +28,7 @@
 			labels: stats.daily_requests.map((d: any) => d.date),
 			datasets: [
 				{
-					label: 'Total Requests per Day',
+					label: $t('admin.requestsPerDay'),
 					data: stats.daily_requests.map((d: any) => d.count),
 					borderColor: '#f87171',
 					backgroundColor: 'rgba(248, 113, 113, 0.1)',
@@ -79,21 +80,22 @@
 </script>
 
 <div class="space-y-6">
-	<h1 class="text-2xl font-bold" style="color:var(--c-text);">Global Analytics</h1>
+	<h1 class="text-2xl font-bold" style="color:var(--c-text);">{$t('admin.analytics')}</h1>
 
 	{#if loading}
 		<div class="flex justify-center py-16">
 			<div class="w-8 h-8 border-4 rounded-full animate-spin" style="border-color:rgba(248,113,113,.25); border-top-color:#f87171;"></div>
+			<p class="sr-only">{$t('common.loading')}</p>
 		</div>
 	{:else if !stats}
 		<div class="text-center py-16 rounded-2xl" style="background:var(--c-surface); border:1px solid var(--c-border);">
-			<p style="color:var(--c-muted);">No analytics data available.</p>
+			<p style="color:var(--c-muted);">{$t('analytics.noData')}</p>
 		</div>
 	{:else}
 		<!-- Stat Cards -->
 		<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 			<div class="rounded-2xl p-6" style="background:var(--c-surface); border:1px solid var(--c-border);">
-				<p class="text-sm mb-1" style="color:var(--c-muted);">Total Requests</p>
+				<p class="text-sm mb-1" style="color:var(--c-muted);">{$t('admin.totalRequests')}</p>
 				<p class="text-3xl font-bold" style="color:#f87171;">{stats.total_requests ?? 0}</p>
 			</div>
 			<div class="rounded-2xl p-6" style="background:var(--c-surface); border:1px solid var(--c-border);">
@@ -110,14 +112,14 @@
 		<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 			{#if lineChartData}
 				<div class="rounded-2xl p-6" style="background:var(--c-surface); border:1px solid var(--c-border);">
-					<h2 class="text-base font-semibold mb-4" style="color:var(--c-text);">Total Requests per Day (Last 30 Days)</h2>
+					<h2 class="text-base font-semibold mb-4" style="color:var(--c-text);">{$t('admin.requestsPerDay')}</h2>
 					<Line data={lineChartData} options={chartOptions} />
 				</div>
 			{/if}
 
 			{#if barChartData}
 				<div class="rounded-2xl p-6" style="background:var(--c-surface); border:1px solid var(--c-border);">
-					<h2 class="text-base font-semibold mb-4" style="color:var(--c-text);">Top Apps by Request Volume</h2>
+					<h2 class="text-base font-semibold mb-4" style="color:var(--c-text);">{$t('admin.topApps')}</h2>
 					<Bar data={barChartData} options={chartOptions} />
 				</div>
 			{/if}
