@@ -26,6 +26,7 @@ pub fn api_router() -> Router<AppState> {
         .nest("/oauth", oauth::router())
         .merge(tester::router())
         .route("/health", get(health_check))
+        .route("/healthz", get(health_check))
 }
 
 pub async fn health_check() -> Json<serde_json::Value> {
