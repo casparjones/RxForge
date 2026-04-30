@@ -38,7 +38,10 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cp /app/target/release/rxforge-backend /rxforge-backend
 
 # ── Stage 3: Runtime ──────────────────────────────────────────────────────────
-FROM gcr.io/distroless/cc-debian12
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 
 COPY --from=backend-builder /rxforge-backend /rxforge
 COPY --from=frontend-builder /app/frontend/build /dist
@@ -48,5 +51,8 @@ EXPOSE 8080
 ENV FRONTEND_DIR=/dist
 ENV JWT_PRIVATE_KEY_PATH=/app/keys/private.pem
 ENV JWT_PUBLIC_KEY_PATH=/app/keys/public.pem
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD curl -sf http://localhost:8080/healthz || exit 1
 
 CMD ["/rxforge"]
