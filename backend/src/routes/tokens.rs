@@ -1,7 +1,7 @@
 use axum::{
     extract::{Path, State},
     http::HeaderMap,
-    routing::{delete, post},
+    routing::{delete, patch, post},
     Json, Router,
 };
 use chrono::{DateTime, Utc};
@@ -19,7 +19,8 @@ use crate::{
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/{app_id}/tokens", post(create_token).get(list_tokens))
-        .route("/{app_id}/tokens/{token_id}", delete(revoke_token))
+        .route("/{app_id}/tokens/{token_id}", delete(revoke_token).patch(update_token))
+        .route("/{app_id}/tokens/{token_id}/purge", delete(purge_token))
 }
 
 pub fn hash_app_token(token: &str) -> String {
@@ -76,6 +77,13 @@ impl From<AppTokenRow> for AppTokenResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct CreateTokenRequest {
+    pub name: Option<String>,
+    #[serde(default)]
+    pub allowed_origins: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateTokenRequest {
     pub name: Option<String>,
     #[serde(default)]
     pub allowed_origins: Vec<String>,
@@ -205,6 +213,63 @@ pub async fn revoke_token(
     }
 
     Ok(Json(serde_json::json!({ "revoked": true })))
+}
+
+pub async fn update_token(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path((app_id, token_id)): Path<(Uuid, Uuid)>,
+    Json(req): Json<UpdateTokenRequest>,
+) -> AppResult<Json<serde_json::Value>> {
+    let owner_id = Uuid::parse_str(user.user_id())
+        .map_err(|_| AppError::Internal(anyhow::anyhow!("Invalid user ID")))?;
+
+    let result = sqlx::query(
+        "UPDATE app_tokens SET
+            name = COALESCE($1, name),
+            allowed_origins = $2
+         WHERE id = $3 AND app_id = $4 AND revoked_at IS NULL
+           AND EXISTS (SELECT 1 FROM apps WHERE id = $4 AND owner_id = $5)",
+    )
+    .bind(req.name.as_deref())
+    .bind(&req.allowed_origins)
+    .bind(token_id)
+    .bind(app_id)
+    .bind(owner_id)
+    .execute(&state.db)
+    .await?;
+
+    if result.rows_affected() == 0 {
+        return Err(AppError::NotFound("Token not found, already revoked, or access denied".to_string()));
+    }
+
+    Ok(Json(serde_json::json!({ "updated": true })))
+}
+
+pub async fn purge_token(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path((app_id, token_id)): Path<(Uuid, Uuid)>,
+) -> AppResult<Json<serde_json::Value>> {
+    let owner_id = Uuid::parse_str(user.user_id())
+        .map_err(|_| AppError::Internal(anyhow::anyhow!("Invalid user ID")))?;
+
+    let result = sqlx::query(
+        "DELETE FROM app_tokens
+         WHERE id = $1 AND app_id = $2 AND revoked_at IS NOT NULL
+           AND EXISTS (SELECT 1 FROM apps WHERE id = $2 AND owner_id = $3)",
+    )
+    .bind(token_id)
+    .bind(app_id)
+    .bind(owner_id)
+    .execute(&state.db)
+    .await?;
+
+    if result.rows_affected() == 0 {
+        return Err(AppError::NotFound("Token not found, not revoked, or access denied".to_string()));
+    }
+
+    Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
 // ── Token Exchange (mounted in auth router) ───────────────────────────────────

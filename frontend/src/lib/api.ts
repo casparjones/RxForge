@@ -52,6 +52,10 @@ export const api = {
         fetchApi<any>(`/apps/${appId}/tokens`, { method: 'POST', body: JSON.stringify(data) }),
       revoke: (appId: string, tokenId: string) =>
         fetchApi(`/apps/${appId}/tokens/${tokenId}`, { method: 'DELETE' }),
+      update: (appId: string, tokenId: string, data: { name?: string; allowed_origins?: string[] }) =>
+        fetchApi(`/apps/${appId}/tokens/${tokenId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+      purge: (appId: string, tokenId: string) =>
+        fetchApi(`/apps/${appId}/tokens/${tokenId}/purge`, { method: 'DELETE' }),
     },
     db: {
       list: (appId: string, page = 1, perPage = 20) =>
