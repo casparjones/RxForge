@@ -257,8 +257,8 @@ async fn resolve_db_name(
     let row: Option<(String, String, String)> = sqlx::query_as(
         "SELECT a.name, a.db_scope, COALESCE(u.email, '')
          FROM apps a
-         LEFT JOIN users u ON u.id = a.owner_id
-         WHERE a.id = $1 AND a.owner_id = $2",
+         LEFT JOIN users u ON u.id = $2
+         WHERE a.id = $1",
     )
     .bind(app_id)
     .bind(owner_id)
