@@ -8,10 +8,11 @@
 
 	interface Props {
 		app: any;
+		userId?: string;
 		onclose: () => void;
 	}
 
-	let { app, onclose }: Props = $props();
+	let { app, userId, onclose }: Props = $props();
 
 	// List state
 	let docs = $state<any[]>([]);
@@ -41,7 +42,12 @@
 	async function loadPage(p: number) {
 		loading = true; listError = '';
 		try {
-			const res = await api.apps.db.list(app.id, p, PER_PAGE);
+			let res;
+			if (userId) {
+				res = await api.admin.users.db.list(userId, app.id, p, PER_PAGE);
+			} else {
+				res = await api.apps.db.list(app.id, p, PER_PAGE);
+			}
 			docs = res.docs; total = res.total; page = res.page; pages = res.pages;
 		} catch (e: any) {
 			listError = e.message;
@@ -57,7 +63,7 @@
 	}
 
 	async function saveDoc() {
-		if (!selectedDoc) return;
+		if (!selectedDoc || userId) return;
 		saving = true; saveError = '';
 		try {
 			let parsed: any;
@@ -126,13 +132,17 @@
 			<svg class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
 		</button>
 		<span class="text-sm font-semibold" style="color:var(--c-text);">{app.name}</span>
+		{#if userId}
+			<span style="color:var(--c-border);">/</span>
+			<span class="text-xs px-2 py-0.5 rounded" style="background:rgba(248,113,113,.12); color:#f87171;">admin view</span>
+		{/if}
 		<span style="color:var(--c-border);">/</span>
 		<span class="text-sm" style="color:var(--c-muted);">{$t('db.database')}</span>
 		{#if !loading}
 			<span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(124,124,255,.12); color:#7c7cff;">{$t('db.documents', { n: total })}</span>
 		{/if}
 		<div class="ml-auto flex items-center gap-2">
-			{#if docs.length > 0}
+			{#if docs.length > 0 && !userId}
 				<button
 					onclick={() => openConfirm(
 						$t('db.clearCollection'),
@@ -186,13 +196,15 @@
 								<p class="text-xs font-mono truncate" style="color:{selectedDoc?._id === doc._id ? '#7c7cff' : 'var(--c-text)'};">{doc._id}</p>
 								<p class="text-xs truncate mt-0.5" style="color:var(--c-muted);">{preview(doc)}</p>
 							</div>
-							<button
-								onclick={(e) => { e.stopPropagation(); openConfirm($t('db.deleteDocument'), $t('db.deleteDocConfirm', { id: doc._id }), () => { confirmOpen = false; deleteDoc(doc); }); }}
-								class="shrink-0 text-xs px-1.5 py-0.5 rounded opacity-0 transition"
-								style="color:#f87171; border:1px solid rgba(248,113,113,.3);"
-								onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.opacity='1'; (e.currentTarget as HTMLElement).style.background='rgba(248,113,113,.1)'; }}
-								onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.opacity='0'; (e.currentTarget as HTMLElement).style.background='transparent'; }}
-							>✕</button>
+							{#if !userId}
+								<button
+									onclick={(e) => { e.stopPropagation(); openConfirm($t('db.deleteDocument'), $t('db.deleteDocConfirm', { id: doc._id }), () => { confirmOpen = false; deleteDoc(doc); }); }}
+									class="shrink-0 text-xs px-1.5 py-0.5 rounded opacity-0 transition"
+									style="color:#f87171; border:1px solid rgba(248,113,113,.3);"
+									onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.opacity='1'; (e.currentTarget as HTMLElement).style.background='rgba(248,113,113,.1)'; }}
+									onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.opacity='0'; (e.currentTarget as HTMLElement).style.background='transparent'; }}
+								>✕</button>
+							{/if}
 						</div>
 					{/each}
 				{/if}
@@ -224,21 +236,23 @@
 				<!-- Editor toolbar -->
 				<div class="flex items-center gap-3 px-5 py-3 shrink-0" style="border-bottom:1px solid var(--c-border); background:var(--c-surface);">
 					<span class="text-xs font-mono truncate flex-1" style="color:var(--c-muted);">{selectedDoc._id}</span>
-					<button
-						onclick={() => openConfirm($t('db.deleteDocument'), $t('db.deleteDocConfirm', { id: selectedDoc._id }), () => { confirmOpen = false; deleteDoc(selectedDoc); })}
-						class="text-sm font-medium px-3 py-1 rounded-lg transition"
-						style="color:#f87171; border:1px solid rgba(248,113,113,.25);"
-						onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(248,113,113,.08)'; }}
-						onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}
-					>{$t('db.deleteDocument')}</button>
-					<button
-						onclick={saveDoc}
-						disabled={saving}
-						class="text-sm font-semibold px-4 py-1 rounded-lg disabled:opacity-60 transition"
-						style="background:#7c7cff; color:#05050f;"
-						onmouseenter={(e) => { if (!saving) (e.currentTarget as HTMLElement).style.background='#9090ff'; }}
-						onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#7c7cff'; }}
-					>{saving ? $t('common.saving') : $t('db.save')}</button>
+					{#if !userId}
+						<button
+							onclick={() => openConfirm($t('db.deleteDocument'), $t('db.deleteDocConfirm', { id: selectedDoc._id }), () => { confirmOpen = false; deleteDoc(selectedDoc); })}
+							class="text-sm font-medium px-3 py-1 rounded-lg transition"
+							style="color:#f87171; border:1px solid rgba(248,113,113,.25);"
+							onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(248,113,113,.08)'; }}
+							onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}
+						>{$t('db.deleteDocument')}</button>
+						<button
+							onclick={saveDoc}
+							disabled={saving}
+							class="text-sm font-semibold px-4 py-1 rounded-lg disabled:opacity-60 transition"
+							style="background:#7c7cff; color:#05050f;"
+							onmouseenter={(e) => { if (!saving) (e.currentTarget as HTMLElement).style.background='#9090ff'; }}
+							onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='#7c7cff'; }}
+						>{saving ? $t('common.saving') : $t('db.save')}</button>
+					{/if}
 				</div>
 
 				{#if saveError}

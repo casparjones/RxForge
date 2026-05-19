@@ -100,8 +100,8 @@ export const en = {
     deleteApp: 'Delete App',
     deleteAppConfirm: 'Delete "{name}" permanently? All data will be lost.',
     editTitle: 'Edit {name}',
-    claudePrompt: 'Claude Prompt',
-    claudePromptTooltip: 'Generate Claude Prompt for RxDB Integration',
+    claudePrompt: 'AI-Agents Prompt',
+    claudePromptTooltip: 'Generate AI-Agents Prompt for RxDB Integration',
     sharedDbBadge: 'Shared DB',
     cancel: 'Cancel',
     saving: 'Saving…',
@@ -126,7 +126,7 @@ export const en = {
     dbSharedWarningLong: '⚠️ In shared scope, all authenticated users read and write the same database. Your app is responsible for document-level access control (e.g. checking owner_id).',
 
     promptModal: {
-      title: 'Claude Prompt',
+      title: 'AI-Agents Prompt',
       hint: 'Copy and paste this prompt into Claude to generate a complete RxDB integration.',
       copy: 'Copy Prompt',
       copied: 'Prompt copied!',

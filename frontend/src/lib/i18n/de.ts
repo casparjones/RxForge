@@ -100,8 +100,8 @@ export const de = {
     deleteApp: 'App löschen',
     deleteAppConfirm: '"{name}" dauerhaft löschen? Alle Daten gehen verloren.',
     editTitle: '{name} bearbeiten',
-    claudePrompt: 'Claude-Prompt',
-    claudePromptTooltip: 'Claude-Prompt für RxDB-Integration generieren',
+    claudePrompt: 'KI-Agenten-Prompt',
+    claudePromptTooltip: 'KI-Agenten-Prompt für RxDB-Integration generieren',
     sharedDbBadge: 'Geteilte DB',
     cancel: 'Abbrechen',
     saving: 'Wird gespeichert…',
@@ -126,8 +126,8 @@ export const de = {
     dbSharedWarningLong: '⚠️ Im geteilten Bereich lesen und schreiben alle authentifizierten Nutzer dieselbe Datenbank. Die App ist für die Zugriffskontrolle auf Dokumentebene verantwortlich (z.B. owner_id prüfen).',
 
     promptModal: {
-      title: 'Claude-Prompt',
-      hint: 'Diesen Prompt in Claude einfügen, um eine vollständige RxDB-Integration zu generieren.',
+      title: 'KI-Agenten-Prompt',
+      hint: 'Diesen Prompt in einen KI-Agenten einfügen, um eine vollständige RxDB-Integration zu generieren.',
       copy: 'Prompt kopieren',
       copied: 'Prompt kopiert!',
       close: 'Schließen',

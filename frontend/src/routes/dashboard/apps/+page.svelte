@@ -282,7 +282,10 @@
   - Authorize: \`GET  ${base}/oauth/authorize\`
   - Token:     \`POST ${base}/oauth/token\`  (grant_type: authorization_code)
   - Revoke:    \`POST ${base}/oauth/revoke\`
-- After the OAuth flow, use the returned \`access_token\` as a Bearer token for all sync requests.`;
+- After the OAuth flow, store both \`access_token\` AND \`refresh_token\` (returned by the server).
+- The \`access_token\` expires after **1 hour** (\`expires_in: 3600\`). Proactively refresh it **60 seconds before expiry**.
+- **Token refresh:** \`POST ${base}/oauth/token\` with \`grant_type=refresh_token\`, \`client_id\`, \`refresh_token\`. The server rotates the refresh token — store the new \`access_token\` AND \`refresh_token\` from the response.
+- If refresh fails (revoked/expired), re-run the full OAuth flow.`;
 
 		return `\
 # RxDB Integration with RxForge — Local-First Offline Sync
@@ -373,8 +376,9 @@ Generate complete TypeScript code that:
    - Maintain a JWT cache with expiry tracking.
    - Before any write request, ensure JWT has > 2 min remaining; otherwise exchange a fresh one.
    - Reads use the raw \`rxft_…\` token directly.` : `
-   - Accept the OAuth \`access_token\` as a parameter.
-   - Use it as the Bearer token for all requests.`}
+   - Store \`{ accessToken, refreshToken, expiresAt }\` in localStorage (key: \`rxforge_token\`).
+   - Before every sync request, check if \`Date.now() >= expiresAt - 60_000\`. If yes, call \`POST ${base}/oauth/token\` with \`grant_type=refresh_token\` to get a fresh token pair (rotate both tokens). If refresh fails, trigger the full OAuth flow again.
+   - Coalesce concurrent refresh attempts (don't fire multiple parallel refresh requests).`}
 
 4. **Exports \`startSync(${isToken ? 'rxftToken' : 'accessToken'}: string)\`** that:
    - Initializes the RxDB database and \`todos\` collection (idempotent — reuse if exists).

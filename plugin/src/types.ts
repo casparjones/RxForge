@@ -34,7 +34,7 @@ export interface RxForgeReplicationOptions<RxDocType> {
  */
 export interface StoredToken {
   accessToken: string;
-  refreshToken: string;
+  refreshToken?: string;
   expiresAt: number; // Unix timestamp in ms
   tokenType: string;
 }

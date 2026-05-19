@@ -86,6 +86,14 @@ export const api = {
         fetchApi(`/admin/users/${id}/permissions`, { method: 'PUT', body: JSON.stringify({ permissions }) }),
       setLocked: (id: string, locked: boolean) =>
         fetchApi(`/admin/users/${id}/lock`, { method: 'PUT', body: JSON.stringify({ locked }) }),
+      db: {
+        list: (userId: string, appId: string, page = 1, perPage = 20) =>
+          fetchApi<{ docs: any[]; total: number; page: number; per_page: number; pages: number }>(
+            `/admin/users/${userId}/apps/${appId}/db/docs?page=${page}&per_page=${perPage}`
+          ),
+        getDoc: (userId: string, appId: string, docId: string) =>
+          fetchApi<any>(`/admin/users/${userId}/apps/${appId}/db/docs/${encodeURIComponent(docId)}`),
+      },
     },
     analytics: { global: () => fetchApi<any>('/analytics/global') },
   },
