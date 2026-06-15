@@ -161,3 +161,38 @@ async fn stream_returns_event_stream_content_type() {
         "expected SSE content-type, got {ct}"
     );
 }
+
+#[tokio::test]
+async fn stream_authenticates_via_query_param() {
+    // The browser EventSource API cannot set an Authorization header, so the
+    // token must travel as a query param. Both `token` and `access_token`
+    // must be accepted (the header path is covered above).
+    if !docker_available() {
+        eprintln!("Docker unavailable – skipping");
+        return;
+    }
+    let mock = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/app_.+_user_.+/_changes$"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("\n"))
+        .mount(&mock)
+        .await;
+
+    let app = spawn_app_with_couchdb_url(&mock.uri()).await;
+    let server = TestServer::new(app.router.clone()).expect("test server");
+
+    let (_uid, token, _) =
+        register_and_login(&server, "streamer-qp@example.com", "correcthorse").await;
+    let app_id = create_app(&server, &token).await;
+
+    for param in ["token", "access_token"] {
+        let resp = server
+            .get(&format!("/api/v1/sync/{app_id}/stream?{param}={token}"))
+            .await;
+        assert_eq!(
+            resp.status_code(),
+            axum::http::StatusCode::OK,
+            "stream should authenticate via ?{param}="
+        );
+    }
+}

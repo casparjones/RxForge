@@ -36,9 +36,10 @@ pub enum SyncAuth {
     RawToken { app_id: Uuid, owner_id: Uuid, token_id: Uuid },
 }
 
-/// Extract Bearer token from `Authorization` header or `?token=` query param.
+/// Extract Bearer token from `Authorization` header or a query param.
 /// The query-param fallback exists because the browser `EventSource` API
-/// cannot set custom headers.
+/// cannot set custom headers. Both `?token=` and `?access_token=` are
+/// accepted, and the value is URL-decoded.
 fn extract_bearer(parts: &Parts) -> Option<String> {
     if let Some(token) = parts
         .headers
@@ -49,12 +50,16 @@ fn extract_bearer(parts: &Parts) -> Option<String> {
         return Some(token.to_string());
     }
 
-    // ?token=<value>
+    // ?token=<value> or ?access_token=<value>
     parts.uri.query().and_then(|q| {
-        q.split('&')
-            .find(|seg| seg.starts_with("token="))
-            .and_then(|seg| seg.strip_prefix("token="))
-            .map(|t| t.to_string())
+        q.split('&').find_map(|seg| {
+            let (key, value) = seg.split_once('=')?;
+            if key == "token" || key == "access_token" {
+                Some(urlencoding::decode(value).map_or_else(|_| value.to_string(), |v| v.into_owned()))
+            } else {
+                None
+            }
+        })
     })
 }
 
