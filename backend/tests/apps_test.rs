@@ -6,7 +6,9 @@
 mod common;
 
 use axum_test::TestServer;
-use common::{docker_available, register_and_login, spawn_app};
+use common::{docker_available, register_and_login, spawn_app, spawn_app_with_couchdb_url};
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 async fn create_app(server: &TestServer, token: &str, name: &str) -> serde_json::Value {
     let resp = server
@@ -129,7 +131,16 @@ async fn user_can_delete_own_app() {
         eprintln!("Docker unavailable – skipping");
         return;
     }
-    let app = spawn_app().await;
+    // delete_app lists the app's linker databases (GET /_all_dbs) and deletes
+    // each; stand in for CouchDB with an empty db list so nothing to delete.
+    let mock = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/_all_dbs"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
+        .mount(&mock)
+        .await;
+
+    let app = spawn_app_with_couchdb_url(&mock.uri()).await;
     let server = TestServer::new(app.router.clone()).expect("test server");
 
     let (_uid, token, _) = register_and_login(&server, "deleter@example.com", "correcthorse").await;

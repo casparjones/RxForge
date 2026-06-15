@@ -55,9 +55,16 @@ async fn pull_forwards_to_couchdb_changes() {
     let (_uid, token, _) = register_and_login(&server, "puller@example.com", "correcthorse").await;
     let app_id = create_app(&server, &token).await;
 
+    // CouchDB DB provisioning (PUT /<db>) – pretend it already exists.
+    Mock::given(method("PUT"))
+        .and(path_regex(r"^/[^/]+$"))
+        .respond_with(ResponseTemplate::new(412))
+        .mount(&mock)
+        .await;
+
     // CouchDB _changes mock – returns two docs and a last_seq checkpoint.
     Mock::given(method("GET"))
-        .and(path_regex(r"^/app_.+_user_.+/_changes$"))
+        .and(path_regex(r"^/[^/]+/_changes$"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "last_seq": "42-abc",
             "results": [
@@ -93,12 +100,35 @@ async fn push_forwards_bulk_docs_and_returns_conflicts() {
     let (_uid, token, _) = register_and_login(&server, "pusher@example.com", "correcthorse").await;
     let app_id = create_app(&server, &token).await;
 
-    // One OK, one conflict.
+    // CouchDB DB provisioning (PUT /<db>) – pretend it already exists.
+    Mock::given(method("PUT"))
+        .and(path_regex(r"^/[^/]+$"))
+        .respond_with(ResponseTemplate::new(412))
+        .mount(&mock)
+        .await;
+
+    // doc-1 is new on the server (404) → no conflict, gets written.
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/[^/]+/doc-1$"))
+        .respond_with(ResponseTemplate::new(404))
+        .mount(&mock)
+        .await;
+
+    // doc-2 already exists on the server. The client pushes it as a *new*
+    // doc (assumedMasterState = null) → RxDB conflict.
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/[^/]+/doc-2$"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "_id": "doc-2", "_rev": "1-server", "msg": "server"
+        })))
+        .mount(&mock)
+        .await;
+
+    // bulk write for the non-conflicting doc-1.
     Mock::given(method("POST"))
-        .and(path_regex(r"^/app_.+_user_.+/_bulk_docs$"))
+        .and(path_regex(r"^/[^/]+/_bulk_docs$"))
         .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!([
             {"ok": true, "id": "doc-1", "rev": "1-aaa"},
-            {"id": "doc-2", "error": "conflict", "reason": "Document update conflict."},
         ])))
         .expect(1)
         .mount(&mock)
@@ -108,18 +138,17 @@ async fn push_forwards_bulk_docs_and_returns_conflicts() {
         .post(&format!("/api/v1/sync/{app_id}/push"))
         .authorization_bearer(&token)
         .json(&serde_json::json!({
-            "documents": [
-                {"_id": "doc-1", "msg": "new"},
-                {"_id": "doc-2", "msg": "stale"},
+            "rows": [
+                {"newDocumentState": {"id": "doc-1", "msg": "new"}},
+                {"assumedMasterState": null, "newDocumentState": {"id": "doc-2", "msg": "stale"}},
             ]
         }))
         .await;
     resp.assert_status_ok();
     let body: serde_json::Value = resp.json();
-    assert_eq!(body["written"], 1);
     let conflicts = body["conflicts"].as_array().expect("conflicts array");
     assert_eq!(conflicts.len(), 1);
-    assert_eq!(conflicts[0], "doc-2");
+    assert_eq!(conflicts[0]["msg"], "server");
 }
 
 #[tokio::test]
@@ -130,10 +159,17 @@ async fn stream_returns_event_stream_content_type() {
     }
     let mock = MockServer::start().await;
 
+    // DB provisioning (PUT /<db>) – pretend it already exists.
+    Mock::given(method("PUT"))
+        .and(path_regex(r"^/[^/]+$"))
+        .respond_with(ResponseTemplate::new(412))
+        .mount(&mock)
+        .await;
+
     // Provide *some* response so the stream handler connects cleanly;
     // we only care about the response headers that our sync layer emits.
     Mock::given(method("GET"))
-        .and(path_regex(r"^/app_.+_user_.+/_changes$"))
+        .and(path_regex(r"^/[^/]+/_changes$"))
         .respond_with(ResponseTemplate::new(200).set_body_string("\n"))
         .mount(&mock)
         .await;
@@ -172,8 +208,13 @@ async fn stream_authenticates_via_query_param() {
         return;
     }
     let mock = MockServer::start().await;
+    Mock::given(method("PUT"))
+        .and(path_regex(r"^/[^/]+$"))
+        .respond_with(ResponseTemplate::new(412))
+        .mount(&mock)
+        .await;
     Mock::given(method("GET"))
-        .and(path_regex(r"^/app_.+_user_.+/_changes$"))
+        .and(path_regex(r"^/[^/]+/_changes$"))
         .respond_with(ResponseTemplate::new(200).set_body_string("\n"))
         .mount(&mock)
         .await;

@@ -97,7 +97,8 @@ async fn authorization_code_flow_full_roundtrip() {
     let (client_id, client_secret, _app_id) =
         create_oauth_app(&server, &user_token, redirect_uri).await;
 
-    // Step 1: /oauth/authorize → 302 with ?code=...
+    // Step 1: /oauth/authorize → 302 to the SPA consent page (the SPA handles
+    // login + consent UI; the code is issued by /oauth/consent, not here).
     let auth_resp = server
         .get("/oauth/authorize")
         .add_query_params([
@@ -119,12 +120,35 @@ async fn authorization_code_flow_full_roundtrip() {
         .to_str()
         .unwrap()
         .to_string();
-    assert!(location.starts_with(redirect_uri));
-    assert!(location.contains("code="));
+    assert!(
+        location.starts_with("/oauth-consent"),
+        "authorize should redirect to the consent page, got {location}"
+    );
+    assert!(location.contains(&format!("client_id={client_id}")));
     assert!(location.contains("state=xyz"));
 
-    // Extract code param from query string.
-    let code = location
+    // Step 2: user grants consent → /oauth/consent returns the redirect_url
+    // back to the client, carrying the authorization code.
+    let consent_resp = server
+        .post("/api/v1/oauth/consent")
+        .authorization_bearer(&user_token)
+        .json(&serde_json::json!({
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "state": "xyz",
+        }))
+        .await;
+    consent_resp.assert_status_ok();
+    let redirect_url = consent_resp.json::<serde_json::Value>()["redirect_url"]
+        .as_str()
+        .expect("redirect_url")
+        .to_string();
+    assert!(redirect_url.starts_with(redirect_uri));
+    assert!(redirect_url.contains("code="));
+    assert!(redirect_url.contains("state=xyz"));
+
+    // Extract code param from the redirect URL.
+    let code = redirect_url
         .split_once("code=")
         .unwrap()
         .1
@@ -133,7 +157,7 @@ async fn authorization_code_flow_full_roundtrip() {
         .unwrap()
         .to_string();
 
-    // Step 2: /oauth/token with the code → access_token.
+    // Step 3: /oauth/token with the code → access_token.
     let token_resp = server
         .post("/oauth/token")
         .form(&serde_json::json!({

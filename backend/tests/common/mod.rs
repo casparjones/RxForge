@@ -7,9 +7,16 @@
 
 use axum::Router;
 use rxforge_backend::{
-    analytics, config::Config, couchdb::CouchDbClient, jwt::JwtManager, routes, state::AppState,
+    analytics,
+    config::Config,
+    couchdb::CouchDbClient,
+    jwt::JwtManager,
+    linker::{couchdb::CouchDbLinker, Linker},
+    routes,
+    state::AppState,
 };
 use sqlx::{postgres::PgPoolOptions, PgPool};
+use std::sync::Arc;
 use tempfile::TempDir;
 use testcontainers_modules::{
     postgres::Postgres,
@@ -76,35 +83,42 @@ pub async fn spawn_app_with_couchdb_url(couchdb_url: &str) -> TestApp {
 
     let config = Config {
         database_url: database_url.clone(),
-        couchdb_url: couchdb_url.to_string(),
-        couchdb_user: "admin".to_string(),
-        couchdb_password: "password".to_string(),
+        couchdb_url: Some(couchdb_url.to_string()),
+        couchdb_user: Some("admin".to_string()),
+        couchdb_password: Some("password".to_string()),
+        mongodb_url: None,
+        mongodb_db: "rxforge".to_string(),
         jwt_private_key_path: private.to_string_lossy().to_string(),
         jwt_public_key_path: public.to_string_lossy().to_string(),
         server_port: 0,
         frontend_dir: "./dist".to_string(),
+        register_invite_code: None,
+        admin_user_email: None,
     };
 
-    let couchdb = CouchDbClient::new(
-        &config.couchdb_url,
-        &config.couchdb_user,
-        &config.couchdb_password,
-    );
+    let linker: Arc<dyn Linker + Send + Sync> = Arc::new(CouchDbLinker(CouchDbClient::new(
+        config.couchdb_url.as_deref().unwrap(),
+        config.couchdb_user.as_deref().unwrap(),
+        config.couchdb_password.as_deref().unwrap(),
+    )));
+
+    let analytics = analytics::start_analytics_writer(pool.clone());
 
     let state = AppState {
         db: pool.clone(),
         config,
         jwt,
-        couchdb,
+        linker,
+        analytics: analytics.clone(),
     };
 
     let router = routes::api_router()
         .layer(axum::middleware::from_fn_with_state(
-            pool.clone(),
-            |axum::extract::State(pool): axum::extract::State<sqlx::PgPool>,
+            analytics,
+            |state: axum::extract::State<analytics::AnalyticsSender>,
              req: axum::extract::Request,
              next: axum::middleware::Next| async move {
-                analytics::track_request(pool, req, next).await
+                analytics::track_request(state.0, req, next).await
             },
         ))
         .with_state(state.clone());
