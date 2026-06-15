@@ -35,3 +35,6 @@ docker/data/
 # Test results
 test-results/
 playwright-report/
+
+# Graphify
+graphify-out/
