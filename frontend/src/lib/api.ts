@@ -14,7 +14,12 @@ async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   if (res.status === 401) {
     localStorage.removeItem('rxforge_token');
     localStorage.removeItem('rxforge_user');
-    window.location.href = '/login';
+    // Preserve where the user was headed so login can send them back
+    // (e.g. an in-progress OAuth consent flow). Avoid looping on auth pages.
+    const path = window.location.pathname;
+    if (path !== '/login' && path !== '/register') {
+      window.location.href = `/login?return_to=${encodeURIComponent(window.location.href)}`;
+    }
     throw new Error('Unauthorized');
   }
 

@@ -227,7 +227,7 @@
 						class="mt-5 text-center"
 						style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8b8fa8;"
 					>
-						{$t('auth.noAccount')} <a href="/register" style="color:#eef0fa; text-decoration:none; border-bottom:1px dotted #8b8fa8;">{$t('auth.createAccount')}</a>
+						{$t('auth.noAccount')} <a href={'/register' + ($page.url.search || '')} style="color:#eef0fa; text-decoration:none; border-bottom:1px dotted #8b8fa8;">{$t('auth.createAccount')}</a>
 					</div>
 				</div>
 

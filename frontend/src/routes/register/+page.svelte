@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 	import { get } from 'svelte/store';
 	import { auth } from '$lib/stores/auth';
 	import { api } from '$lib/api';
@@ -15,6 +15,12 @@
 	let loading = $state(false);
 	let error = $state('');
 	let inviteRequired = $state(false);
+
+	function getReturnTo(): string {
+		const rt = $page.url.searchParams.get('return_to');
+		if (rt) return decodeURIComponent(rt);
+		return '/dashboard';
+	}
 
 	onMount(() => {
 		api.auth.info().then(info => { inviteRequired = info.invite_required; }).catch(() => {});
@@ -31,7 +37,7 @@
 			const res = await api.auth.register(email, password, inviteCode || undefined);
 			auth.login(res.token, res.user);
 			toast.success(get(t)('auth.accountCreated'));
-			goto('/dashboard');
+			window.location.href = getReturnTo();
 		} catch (e: any) {
 			error = e.message || 'Registration failed.';
 		} finally {
@@ -172,7 +178,7 @@
 				</form>
 
 				<div class="mt-5 text-center" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8b8fa8;">
-					{$t('auth.haveAccount')} <a href="/login" style="color:#eef0fa; text-decoration:none; border-bottom:1px dotted #8b8fa8;">{$t('auth.signIn')}</a>
+					{$t('auth.haveAccount')} <a href={'/login' + ($page.url.search || '')} style="color:#eef0fa; text-decoration:none; border-bottom:1px dotted #8b8fa8;">{$t('auth.signIn')}</a>
 				</div>
 			</div>
 		</div>

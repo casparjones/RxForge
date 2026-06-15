@@ -11,10 +11,11 @@
 	let currentPath = $derived($page?.url?.pathname ?? '');
 
 	onMount(() => {
-		if (!$auth.token && typeof localStorage !== 'undefined') {
-			if (!localStorage.getItem('rxforge_token')) goto('/login');
-		} else if (!$auth.token) {
-			goto('/login');
+		const loggedOut =
+			!$auth.token &&
+			(typeof localStorage === 'undefined' || !localStorage.getItem('rxforge_token'));
+		if (loggedOut) {
+			goto(`/login?return_to=${encodeURIComponent(window.location.href)}`);
 		}
 	});
 
