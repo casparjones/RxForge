@@ -373,49 +373,146 @@ impl CouchDbClient {
         }
     }
 
-    /// List non-design documents from a database using `_all_docs`.
-    /// Returns `(docs, total_rows)`. total_rows is the raw CouchDB count (may include design docs).
-    pub async fn list_docs(&self, db_name: &str, limit: u32, skip: u32) -> Result<(Vec<Value>, u64)> {
-        let url = format!(
-            "{}/{}/_all_docs?include_docs=true&limit={}&skip={}",
-            self.base_url, db_name, limit, skip
-        );
+    /// List non-design documents from a database.
+    ///
+    /// Supports a `deleted` filter (active / deleted / all) and a free-text `search`
+    /// matched against each document's JSON representation. `_all_docs` only returns
+    /// live documents, so tombstones are gathered from `_changes` when requested.
+    /// Returns `(docs, total)` where `total` is the number of documents matching the
+    /// filter and search (not the raw CouchDB row count).
+    pub async fn list_docs(
+        &self,
+        db_name: &str,
+        limit: u32,
+        skip: u32,
+        search: Option<&str>,
+        deleted: crate::linker::DeletedFilter,
+    ) -> Result<(Vec<Value>, u64)> {
+        use crate::linker::DeletedFilter;
 
-        let response = self
-            .client
-            .get(&url)
-            .basic_auth(&self.user, Some(&self.password))
-            .send()
-            .await?;
+        let needle = search
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_lowercase);
 
-        if response.status() == StatusCode::NOT_FOUND {
-            return Ok((vec![], 0));
+        // Fast path: live documents, no search — let CouchDB do skip/limit.
+        if needle.is_none() && deleted == DeletedFilter::Active {
+            let url = format!(
+                "{}/{}/_all_docs?include_docs=true&limit={}&skip={}",
+                self.base_url, db_name, limit, skip
+            );
+            let response = self
+                .client
+                .get(&url)
+                .basic_auth(&self.user, Some(&self.password))
+                .send()
+                .await?;
+            if response.status() == StatusCode::NOT_FOUND {
+                return Ok((vec![], 0));
+            }
+            if !response.status().is_success() {
+                let status = response.status();
+                let body = response.text().await.unwrap_or_default();
+                anyhow::bail!("CouchDB _all_docs error {}: {}", status, body);
+            }
+            let payload: Value = response.json().await?;
+            let total = payload.get("total_rows").and_then(|v| v.as_u64()).unwrap_or(0);
+            let documents = payload
+                .get("rows")
+                .and_then(|rows| rows.as_array())
+                .map(|rows| {
+                    rows.iter()
+                        .filter_map(|row| row.get("doc").cloned())
+                        .filter(|doc| Self::is_user_doc(doc))
+                        .collect()
+                })
+                .unwrap_or_default();
+            return Ok((documents, total));
         }
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            anyhow::bail!("CouchDB _all_docs error {}: {}", status, body);
+
+        // General path: gather candidate documents, then filter/search/window in memory.
+        let mut candidates: Vec<Value> = Vec::new();
+
+        if deleted != DeletedFilter::Deleted {
+            let url = format!("{}/{}/_all_docs?include_docs=true", self.base_url, db_name);
+            let response = self
+                .client
+                .get(&url)
+                .basic_auth(&self.user, Some(&self.password))
+                .send()
+                .await?;
+            if response.status() != StatusCode::NOT_FOUND {
+                if !response.status().is_success() {
+                    let status = response.status();
+                    let body = response.text().await.unwrap_or_default();
+                    anyhow::bail!("CouchDB _all_docs error {}: {}", status, body);
+                }
+                let payload: Value = response.json().await?;
+                if let Some(rows) = payload.get("rows").and_then(|r| r.as_array()) {
+                    for doc in rows.iter().filter_map(|row| row.get("doc").cloned()) {
+                        if Self::is_user_doc(&doc) {
+                            candidates.push(doc);
+                        }
+                    }
+                }
+            }
         }
 
-        let payload: Value = response.json().await?;
-        let total = payload.get("total_rows").and_then(|v| v.as_u64()).unwrap_or(0);
-        let documents = payload
-            .get("rows")
-            .and_then(|rows| rows.as_array())
-            .map(|rows| {
-                rows.iter()
-                    .filter_map(|row| row.get("doc").cloned())
-                    .filter(|doc| {
-                        doc.get("_id")
-                            .and_then(|id| id.as_str())
-                            .map(|id| !id.starts_with('_'))
-                            .unwrap_or(false)
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
+        if deleted != DeletedFilter::Active {
+            // Tombstones are not surfaced by `_all_docs`; pull them from `_changes`.
+            let url = format!("{}/{}/_changes?include_docs=true", self.base_url, db_name);
+            let response = self
+                .client
+                .get(&url)
+                .basic_auth(&self.user, Some(&self.password))
+                .send()
+                .await?;
+            if response.status() != StatusCode::NOT_FOUND {
+                if !response.status().is_success() {
+                    let status = response.status();
+                    let body = response.text().await.unwrap_or_default();
+                    anyhow::bail!("CouchDB _changes error {}: {}", status, body);
+                }
+                let payload: Value = response.json().await?;
+                if let Some(results) = payload.get("results").and_then(|r| r.as_array()) {
+                    for doc in results.iter().filter_map(|row| row.get("doc").cloned()) {
+                        let is_deleted = doc
+                            .get("_deleted")
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false);
+                        if is_deleted && Self::is_user_doc(&doc) {
+                            candidates.push(doc);
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Some(needle) = &needle {
+            candidates.retain(|doc| {
+                serde_json::to_string(doc)
+                    .unwrap_or_default()
+                    .to_lowercase()
+                    .contains(needle)
+            });
+        }
+
+        let total = candidates.len() as u64;
+        let documents = candidates
+            .into_iter()
+            .skip(skip as usize)
+            .take(limit as usize)
+            .collect();
 
         Ok((documents, total))
+    }
+
+    /// A user document is any non-design document (id does not start with `_`).
+    fn is_user_doc(doc: &Value) -> bool {
+        doc.get("_id")
+            .and_then(|id| id.as_str())
+            .map(|id| !id.starts_with('_'))
+            .unwrap_or(false)
     }
 
     /// Delete all non-design documents using bulk tombstones.

@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::{
     error::{AppError, AppResult},
-    linker::normalized_db_name,
+    linker::{normalized_db_name, DeletedFilter},
     middleware::auth::{require_permission, AuthUser},
     state::AppState,
 };
@@ -21,8 +21,14 @@ pub fn router() -> Router<AppState> {
         .route("/users/{id}/lock",          put(set_locked))
         .route("/users/{id}/permissions",   put(update_permissions))
         .route("/users/{id}/apps",          get(list_user_apps))
-        .route("/users/{user_id}/apps/{app_id}/db/docs", get(admin_list_docs))
-        .route("/users/{user_id}/apps/{app_id}/db/docs/{doc_id}", get(admin_get_doc))
+        .route(
+            "/users/{user_id}/apps/{app_id}/db/docs",
+            get(admin_list_docs).delete(admin_delete_all),
+        )
+        .route(
+            "/users/{user_id}/apps/{app_id}/db/docs/{doc_id}",
+            get(admin_get_doc).delete(admin_delete_doc),
+        )
 }
 
 #[derive(Debug, sqlx::FromRow)]
@@ -272,6 +278,15 @@ async fn resolve_admin_db(state: &AppState, app_id: Uuid, target_user_id: Uuid) 
 pub struct AdminListQuery {
     pub page: Option<u64>,
     pub per_page: Option<u64>,
+    /// Free-text search matched against each document's JSON representation.
+    pub search: Option<String>,
+    /// Tombstone filter: `active` (default), `deleted`, or `all`.
+    pub deleted: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AdminDeleteDocQuery {
+    pub rev: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -300,7 +315,11 @@ pub async fn admin_list_docs(
     state.linker.ensure_db(&db_name).await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
 
-    let (docs, total) = state.linker.list_docs(&db_name, per_page, skip).await
+    let deleted = DeletedFilter::from_query(query.deleted.as_deref());
+    let (docs, total) = state
+        .linker
+        .list_docs(&db_name, per_page, skip, query.search.as_deref(), deleted)
+        .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
 
     let pages = if total == 0 { 1 } else { (total + per_page as u64 - 1) / per_page as u64 };
@@ -322,6 +341,37 @@ pub async fn admin_get_doc(
         .ok_or_else(|| AppError::NotFound("Document not found".to_string()))?;
 
     Ok(Json(doc))
+}
+
+pub async fn admin_delete_doc(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path((user_id, app_id, doc_id)): Path<(Uuid, Uuid, String)>,
+    Query(query): Query<AdminDeleteDocQuery>,
+) -> AppResult<Json<serde_json::Value>> {
+    require_permission(&user, "users:manage")?;
+
+    let db_name = resolve_admin_db(&state, app_id, user_id).await?;
+
+    state.linker.delete_doc(&db_name, &doc_id, &query.rev).await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
+
+    Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+pub async fn admin_delete_all(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path((user_id, app_id)): Path<(Uuid, Uuid)>,
+) -> AppResult<Json<serde_json::Value>> {
+    require_permission(&user, "users:manage")?;
+
+    let db_name = resolve_admin_db(&state, app_id, user_id).await?;
+
+    let deleted = state.linker.delete_all_docs(&db_name).await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
+
+    Ok(Json(serde_json::json!({ "deleted": deleted })))
 }
 
 #[cfg(test)]

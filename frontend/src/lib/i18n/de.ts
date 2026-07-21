@@ -183,10 +183,17 @@ export const de = {
     deleteDocConfirm: '„{id}" löschen?',
     documentSaved: 'Dokument gespeichert.',
     documentDeleted: 'Dokument gelöscht.',
+    documentsDeleted: '{n} Dokument(e) gelöscht.',
     save: 'Speichern',
     paginationBack: '← Zurück',
     paginationNext: 'Weiter →',
     invalidJson: 'Ungültiges JSON.',
+    searchPlaceholder: 'Dokumente durchsuchen…',
+    filterActive: 'Aktiv',
+    filterDeleted: 'Gelöscht',
+    filterAll: 'Alle',
+    deletedBadge: 'gelöscht',
+    noResults: 'Keine passenden Dokumente.',
   },
 
   rights: {

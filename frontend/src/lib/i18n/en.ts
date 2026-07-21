@@ -183,10 +183,17 @@ export const en = {
     deleteDocConfirm: 'Delete "{id}"?',
     documentSaved: 'Document saved.',
     documentDeleted: 'Document deleted.',
+    documentsDeleted: '{n} document(s) deleted.',
     save: 'Save',
     paginationBack: '← Back',
     paginationNext: 'Next →',
     invalidJson: 'Invalid JSON.',
+    searchPlaceholder: 'Search documents…',
+    filterActive: 'Active',
+    filterDeleted: 'Deleted',
+    filterAll: 'All',
+    deletedBadge: 'deleted',
+    noResults: 'No matching documents.',
   },
 
   rights: {

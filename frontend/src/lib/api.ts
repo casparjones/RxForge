@@ -63,10 +63,13 @@ export const api = {
         fetchApi(`/apps/${appId}/tokens/${tokenId}/purge`, { method: 'DELETE' }),
     },
     db: {
-      list: (appId: string, page = 1, perPage = 20) =>
-        fetchApi<{ docs: any[]; total: number; page: number; per_page: number; pages: number }>(
-          `/apps/${appId}/db/docs?page=${page}&per_page=${perPage}`
-        ),
+      list: (appId: string, page = 1, perPage = 20, search = '', deleted: 'active' | 'deleted' | 'all' = 'active') => {
+        const params = new URLSearchParams({ page: String(page), per_page: String(perPage), deleted });
+        if (search) params.set('search', search);
+        return fetchApi<{ docs: any[]; total: number; page: number; per_page: number; pages: number }>(
+          `/apps/${appId}/db/docs?${params.toString()}`
+        );
+      },
       getDoc: (appId: string, docId: string) =>
         fetchApi<any>(`/apps/${appId}/db/docs/${encodeURIComponent(docId)}`),
       updateDoc: (appId: string, docId: string, body: any) =>
@@ -92,12 +95,21 @@ export const api = {
       setLocked: (id: string, locked: boolean) =>
         fetchApi(`/admin/users/${id}/lock`, { method: 'PUT', body: JSON.stringify({ locked }) }),
       db: {
-        list: (userId: string, appId: string, page = 1, perPage = 20) =>
-          fetchApi<{ docs: any[]; total: number; page: number; per_page: number; pages: number }>(
-            `/admin/users/${userId}/apps/${appId}/db/docs?page=${page}&per_page=${perPage}`
-          ),
+        list: (userId: string, appId: string, page = 1, perPage = 20, search = '', deleted: 'active' | 'deleted' | 'all' = 'active') => {
+          const params = new URLSearchParams({ page: String(page), per_page: String(perPage), deleted });
+          if (search) params.set('search', search);
+          return fetchApi<{ docs: any[]; total: number; page: number; per_page: number; pages: number }>(
+            `/admin/users/${userId}/apps/${appId}/db/docs?${params.toString()}`
+          );
+        },
         getDoc: (userId: string, appId: string, docId: string) =>
           fetchApi<any>(`/admin/users/${userId}/apps/${appId}/db/docs/${encodeURIComponent(docId)}`),
+        deleteDoc: (userId: string, appId: string, docId: string, rev: string) =>
+          fetchApi<any>(`/admin/users/${userId}/apps/${appId}/db/docs/${encodeURIComponent(docId)}?rev=${encodeURIComponent(rev)}`, {
+            method: 'DELETE',
+          }),
+        deleteAll: (userId: string, appId: string) =>
+          fetchApi<{ deleted: number }>(`/admin/users/${userId}/apps/${appId}/db/docs`, { method: 'DELETE' }),
       },
     },
     analytics: { global: () => fetchApi<any>('/analytics/global') },

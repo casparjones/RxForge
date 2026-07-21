@@ -11,7 +11,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{pin::Pin, time::Duration};
 
-use crate::linker::{BulkDocsResult, ChangesResult, Linker};
+use crate::linker::{BulkDocsResult, ChangesResult, DeletedFilter, Linker};
 
 pub struct MongoDbLinker {
     db: Database,
@@ -268,28 +268,83 @@ impl Linker for MongoDbLinker {
         db_name: &str,
         limit: u32,
         skip: u32,
+        search: Option<&str>,
+        deleted: DeletedFilter,
     ) -> anyhow::Result<(Vec<Value>, u64)> {
-        let filter = doc! { "_id": { "$ne": "__meta" } };
-        let total = self
-            .collection(db_name)
-            .count_documents(filter.clone())
-            .await
-            .with_context(|| format!("failed to count MongoDB docs for {db_name}"))?;
+        // Base filter: never surface the internal metadata document.
+        let mut filter = doc! { "_id": { "$ne": "__meta" } };
+        match deleted {
+            DeletedFilter::Active => {
+                filter.insert("_deleted", doc! { "$ne": true });
+            }
+            DeletedFilter::Deleted => {
+                filter.insert("_deleted", true);
+            }
+            DeletedFilter::All => {}
+        }
 
+        // Normalize the search term once; empty/whitespace search is treated as "no search".
+        let needle = search
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_lowercase);
+
+        // Fast path: no text search — let MongoDB do skip/limit and counting.
+        if needle.is_none() {
+            let total = self
+                .collection(db_name)
+                .count_documents(filter.clone())
+                .await
+                .with_context(|| format!("failed to count MongoDB docs for {db_name}"))?;
+
+            let mut cursor = self
+                .collection(db_name)
+                .find(filter)
+                .skip(skip as u64)
+                .limit(limit as i64)
+                .await
+                .with_context(|| format!("failed to list MongoDB docs for {db_name}"))?;
+
+            let mut docs = Vec::new();
+            while cursor.advance().await.context("failed to advance MongoDB list cursor")? {
+                let doc: Document = cursor.deserialize_current()?;
+                let value: Value =
+                    bson::from_document(doc).context("failed to convert MongoDB doc to JSON")?;
+                docs.push(Self::strip_seq(value));
+            }
+
+            return Ok((docs, total));
+        }
+
+        // Search path: MongoDB has no generic full-document text match without a text
+        // index, so scan documents matching the (cheap, indexed) base filter and match the
+        // needle against each document's JSON representation. This keeps pagination and the
+        // total count correct across all fields. Acceptable for an admin browse tool.
+        let needle = needle.unwrap();
         let mut cursor = self
             .collection(db_name)
             .find(filter)
-            .skip(skip as u64)
-            .limit(limit as i64)
             .await
-            .with_context(|| format!("failed to list MongoDB docs for {db_name}"))?;
+            .with_context(|| format!("failed to search MongoDB docs for {db_name}"))?;
 
+        let mut total: u64 = 0;
         let mut docs = Vec::new();
-        while cursor.advance().await.context("failed to advance MongoDB list cursor")? {
+        while cursor.advance().await.context("failed to advance MongoDB search cursor")? {
             let doc: Document = cursor.deserialize_current()?;
             let value: Value =
                 bson::from_document(doc).context("failed to convert MongoDB doc to JSON")?;
-            docs.push(Self::strip_seq(value));
+            let value = Self::strip_seq(value);
+
+            let haystack = serde_json::to_string(&value).unwrap_or_default().to_lowercase();
+            if !haystack.contains(&needle) {
+                continue;
+            }
+
+            // Window the matches manually to preserve pagination semantics.
+            if total >= skip as u64 && docs.len() < limit as usize {
+                docs.push(value);
+            }
+            total += 1;
         }
 
         Ok((docs, total))

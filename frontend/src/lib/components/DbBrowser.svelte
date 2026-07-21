@@ -23,6 +23,31 @@
 	let loading = $state(false);
 	let listError = $state('');
 
+	// Search & filter state
+	let searchInput = $state('');
+	let search = $state('');
+	let deletedFilter = $state<'active' | 'deleted' | 'all'>('active');
+	let searchTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function isDeleted(doc: any): boolean {
+		return doc?._deleted === true;
+	}
+
+	function applySearch() {
+		clearTimeout(searchTimer);
+		searchTimer = setTimeout(() => {
+			search = searchInput.trim();
+			loadPage(1);
+		}, 300);
+	}
+
+	function setFilter(f: 'active' | 'deleted' | 'all') {
+		if (deletedFilter === f) return;
+		deletedFilter = f;
+		selectedDoc = null;
+		loadPage(1);
+	}
+
 	// Selected document
 	let selectedDoc = $state<any | null>(null);
 	let editJson = $state('');
@@ -44,9 +69,9 @@
 		try {
 			let res;
 			if (userId) {
-				res = await api.admin.users.db.list(userId, app.id, p, PER_PAGE);
+				res = await api.admin.users.db.list(userId, app.id, p, PER_PAGE, search, deletedFilter);
 			} else {
-				res = await api.apps.db.list(app.id, p, PER_PAGE);
+				res = await api.apps.db.list(app.id, p, PER_PAGE, search, deletedFilter);
 			}
 			docs = res.docs; total = res.total; page = res.page; pages = res.pages;
 		} catch (e: any) {
@@ -83,10 +108,21 @@
 
 	async function deleteDoc(doc: any) {
 		try {
-			await api.apps.db.deleteDoc(app.id, doc._id, doc._rev);
-			docs = docs.filter(d => d._id !== doc._id);
-			total = Math.max(0, total - 1);
-			if (selectedDoc?._id === doc._id) selectedDoc = null;
+			if (userId) {
+				await api.admin.users.db.deleteDoc(userId, app.id, doc._id, doc._rev);
+			} else {
+				await api.apps.db.deleteDoc(app.id, doc._id, doc._rev);
+			}
+			// When the active-only filter is applied the tombstone drops out of view;
+			// with 'deleted'/'all' filters the list is refreshed to reflect the new state.
+			if (deletedFilter === 'active') {
+				docs = docs.filter(d => d._id !== doc._id);
+				total = Math.max(0, total - 1);
+				if (selectedDoc?._id === doc._id) selectedDoc = null;
+			} else {
+				if (selectedDoc?._id === doc._id) selectedDoc = null;
+				await loadPage(page);
+			}
 			toast.success(get(t)('db.documentDeleted'));
 		} catch (e: any) {
 			toast.error('Error: ' + e.message);
@@ -95,9 +131,11 @@
 
 	async function deleteAll() {
 		try {
-			const res = await api.apps.db.deleteAll(app.id);
+			const res = userId
+				? await api.admin.users.db.deleteAll(userId, app.id)
+				: await api.apps.db.deleteAll(app.id);
 			docs = []; total = 0; page = 1; pages = 1; selectedDoc = null;
-			toast.success(`${res.deleted} document(s) deleted.`);
+			toast.success(get(t)('db.documentsDeleted', { n: res.deleted }));
 		} catch (e: any) {
 			toast.error('Error: ' + e.message);
 		}
@@ -142,7 +180,7 @@
 			<span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(124,124,255,.12); color:#7c7cff;">{$t('db.documents', { n: total })}</span>
 		{/if}
 		<div class="ml-auto flex items-center gap-2">
-			{#if docs.length > 0 && !userId}
+			{#if total > 0}
 				<button
 					onclick={() => openConfirm(
 						$t('db.clearCollection'),
@@ -164,6 +202,40 @@
 		<!-- ── Left: document list ── -->
 		<div class="flex flex-col overflow-hidden shrink-0" style="width:360px; border-right:1px solid var(--c-border);">
 
+			<!-- Search + filter header -->
+			<div class="shrink-0 px-3 py-3 flex flex-col gap-2.5" style="border-bottom:1px solid var(--c-border);">
+				<div class="relative">
+					<svg class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style="color:var(--c-muted);" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd"/></svg>
+					<input
+						type="text"
+						bind:value={searchInput}
+						oninput={applySearch}
+						placeholder={$t('db.searchPlaceholder')}
+						class="w-full text-sm rounded-lg pl-8 pr-8 py-2 outline-none"
+						style="background:var(--c-bg,#05050f); border:1px solid var(--c-border); color:var(--c-text);"
+					/>
+					{#if searchInput}
+						<button
+							onclick={() => { searchInput = ''; search = ''; loadPage(1); }}
+							class="absolute right-2 top-1/2 -translate-y-1/2 text-xs"
+							style="color:var(--c-muted);"
+							aria-label={$t('common.close')}
+						>✕</button>
+					{/if}
+				</div>
+				<div class="flex items-center gap-1 text-xs">
+					{#each [['active', $t('db.filterActive')], ['deleted', $t('db.filterDeleted')], ['all', $t('db.filterAll')]] as [value, label]}
+						<button
+							onclick={() => setFilter(value as 'active' | 'deleted' | 'all')}
+							class="flex-1 px-2 py-1 rounded-md transition font-medium"
+							style="{deletedFilter === value
+								? 'background:rgba(124,124,255,.14); color:#7c7cff; border:1px solid rgba(124,124,255,.35);'
+								: 'background:transparent; color:var(--c-muted); border:1px solid var(--c-border);'}"
+						>{label}</button>
+					{/each}
+				</div>
+			</div>
+
 			<!-- List body -->
 			<div class="flex-1 overflow-y-auto">
 				{#if loading}
@@ -177,8 +249,12 @@
 					</div>
 				{:else if docs.length === 0}
 					<div class="p-8 text-center">
-						<p class="text-sm" style="color:var(--c-muted);">{$t('db.noDocuments')}</p>
-						<p class="text-xs mt-1 opacity-60" style="color:var(--c-muted);">{$t('db.syncHint')}</p>
+						{#if search || deletedFilter !== 'active'}
+							<p class="text-sm" style="color:var(--c-muted);">{$t('db.noResults')}</p>
+						{:else}
+							<p class="text-sm" style="color:var(--c-muted);">{$t('db.noDocuments')}</p>
+							<p class="text-xs mt-1 opacity-60" style="color:var(--c-muted);">{$t('db.syncHint')}</p>
+						{/if}
 					</div>
 				{:else}
 					{#each docs as doc (doc._id)}
@@ -193,10 +269,15 @@
 							onmouseleave={(e) => { if (selectedDoc?._id !== doc._id) (e.currentTarget as HTMLElement).style.background='transparent'; }}
 						>
 							<div class="flex-1 min-w-0">
-								<p class="text-xs font-mono truncate" style="color:{selectedDoc?._id === doc._id ? '#7c7cff' : 'var(--c-text)'};">{doc._id}</p>
+								<div class="flex items-center gap-1.5">
+									{#if isDeleted(doc)}
+										<span class="shrink-0 text-[10px] px-1 py-0.5 rounded leading-none" style="background:rgba(248,113,113,.14); color:#f87171;">{$t('db.deletedBadge')}</span>
+									{/if}
+									<p class="text-xs font-mono truncate" style="color:{selectedDoc?._id === doc._id ? '#7c7cff' : 'var(--c-text)'};">{doc._id}</p>
+								</div>
 								<p class="text-xs truncate mt-0.5" style="color:var(--c-muted);">{preview(doc)}</p>
 							</div>
-							{#if !userId}
+							{#if !isDeleted(doc)}
 								<button
 									onclick={(e) => { e.stopPropagation(); openConfirm($t('db.deleteDocument'), $t('db.deleteDocConfirm', { id: doc._id }), () => { confirmOpen = false; deleteDoc(doc); }); }}
 									class="shrink-0 text-xs px-1.5 py-0.5 rounded opacity-0 transition"
@@ -236,7 +317,10 @@
 				<!-- Editor toolbar -->
 				<div class="flex items-center gap-3 px-5 py-3 shrink-0" style="border-bottom:1px solid var(--c-border); background:var(--c-surface);">
 					<span class="text-xs font-mono truncate flex-1" style="color:var(--c-muted);">{selectedDoc._id}</span>
-					{#if !userId}
+					{#if isDeleted(selectedDoc)}
+						<span class="text-xs px-2 py-0.5 rounded" style="background:rgba(248,113,113,.12); color:#f87171;">{$t('db.deletedBadge')}</span>
+					{/if}
+					{#if !isDeleted(selectedDoc)}
 						<button
 							onclick={() => openConfirm($t('db.deleteDocument'), $t('db.deleteDocConfirm', { id: selectedDoc._id }), () => { confirmOpen = false; deleteDoc(selectedDoc); })}
 							class="text-sm font-medium px-3 py-1 rounded-lg transition"
@@ -244,6 +328,8 @@
 							onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(248,113,113,.08)'; }}
 							onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}
 						>{$t('db.deleteDocument')}</button>
+					{/if}
+					{#if !userId}
 						<button
 							onclick={saveDoc}
 							disabled={saving}

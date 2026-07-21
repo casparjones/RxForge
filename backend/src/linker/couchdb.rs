@@ -5,7 +5,7 @@ use futures_core::Stream;
 use serde_json::Value;
 use std::pin::Pin;
 
-use crate::linker::{BulkDocsResult, ChangesResult, Linker};
+use crate::linker::{BulkDocsResult, ChangesResult, DeletedFilter, Linker};
 
 pub struct CouchDbLinker(pub crate::couchdb::CouchDbClient);
 
@@ -75,9 +75,11 @@ impl Linker for CouchDbLinker {
         db_name: &str,
         limit: u32,
         skip: u32,
+        search: Option<&str>,
+        deleted: DeletedFilter,
     ) -> anyhow::Result<(Vec<Value>, u64)> {
         self.0
-            .list_docs(db_name, limit, skip)
+            .list_docs(db_name, limit, skip, search, deleted)
             .await
             .with_context(|| format!("failed to list CouchDB docs for {db_name}"))
     }

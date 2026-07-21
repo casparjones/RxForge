@@ -57,6 +57,37 @@ pub struct ChangesResult {
     pub checkpoint: Value,
 }
 
+/// Which tombstone state to include when listing documents.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DeletedFilter {
+    /// Only live documents (`_deleted` unset or not `true`). Default.
+    #[default]
+    Active,
+    /// Only tombstones (`_deleted == true`).
+    Deleted,
+    /// Both live documents and tombstones.
+    All,
+}
+
+impl DeletedFilter {
+    pub fn from_query(s: Option<&str>) -> Self {
+        match s {
+            Some("deleted") => Self::Deleted,
+            Some("all") => Self::All,
+            _ => Self::Active,
+        }
+    }
+
+    /// Whether a document with the given `_deleted` flag should be included.
+    pub fn matches(&self, is_deleted: bool) -> bool {
+        match self {
+            Self::Active => !is_deleted,
+            Self::Deleted => is_deleted,
+            Self::All => true,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct BulkDocsResult {
     pub written: usize,
@@ -79,8 +110,14 @@ pub trait Linker: Send + Sync {
         &self,
         db_name: String,
     ) -> Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static>>;
-    async fn list_docs(&self, db_name: &str, limit: u32, skip: u32)
-        -> anyhow::Result<(Vec<Value>, u64)>;
+    async fn list_docs(
+        &self,
+        db_name: &str,
+        limit: u32,
+        skip: u32,
+        search: Option<&str>,
+        deleted: DeletedFilter,
+    ) -> anyhow::Result<(Vec<Value>, u64)>;
     async fn get_doc(&self, db_name: &str, doc_id: &str) -> anyhow::Result<Option<Value>>;
     async fn put_doc(&self, db_name: &str, doc_id: &str, doc: Value) -> anyhow::Result<Value>;
     async fn delete_doc(

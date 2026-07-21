@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::{
     error::{AppError, AppResult},
-    linker::normalized_db_name,
+    linker::{normalized_db_name, DeletedFilter},
     middleware::auth::AuthUser,
     state::AppState,
 };
@@ -24,6 +24,10 @@ pub fn router() -> Router<AppState> {
 pub struct ListQuery {
     pub page: Option<u64>,
     pub per_page: Option<u64>,
+    /// Free-text search matched against each document's JSON representation.
+    pub search: Option<String>,
+    /// Tombstone filter: `active` (default), `deleted`, or `all`.
+    pub deleted: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -81,7 +85,11 @@ pub async fn list_docs(
     state.linker.ensure_db(&db_name).await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
 
-    let (docs, total) = state.linker.list_docs(&db_name, per_page, skip).await
+    let deleted = DeletedFilter::from_query(query.deleted.as_deref());
+    let (docs, total) = state
+        .linker
+        .list_docs(&db_name, per_page, skip, query.search.as_deref(), deleted)
+        .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
 
     let pages = if total == 0 { 1 } else { (total + per_page as u64 - 1) / per_page as u64 };
