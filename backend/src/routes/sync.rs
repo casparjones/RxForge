@@ -12,6 +12,7 @@ use uuid::Uuid;
 use crate::{
     error::{AppError, AppResult},
     linker::normalized_db_name,
+    routes::sync_events::{self, ClientInfo, RecordedOp},
     routes::tokens::hash_app_token,
     state::AppState,
 };
@@ -222,6 +223,9 @@ pub struct PushRow {
 #[derive(Debug, Deserialize)]
 pub struct PushRequest {
     pub rows: Vec<PushRow>,
+    /// Optional device identity for the audit trail (see `sync_events`).
+    #[serde(default)]
+    pub client: Option<ClientInfo>,
 }
 
 #[derive(Debug, Serialize)]
@@ -310,6 +314,7 @@ pub async fn push(
     State(state): State<AppState>,
     auth: SyncAuth,
     Path(app_id): Path<Uuid>,
+    headers: HeaderMap,
     Json(req): Json<PushRequest>,
 ) -> AppResult<Json<PushResponse>> {
     if matches!(auth, SyncAuth::RawToken { .. }) {
@@ -325,6 +330,7 @@ pub async fn push(
 
     let mut conflicts: Vec<serde_json::Value> = Vec::new();
     let mut docs_to_write: Vec<serde_json::Value> = Vec::new();
+    let mut logged: Vec<RecordedOp> = Vec::new();
 
     for row in req.rows {
         let doc_id = row.new_document_state
@@ -346,12 +352,33 @@ pub async fn push(
             (Some(assumed), Some(actual)) => assumed != actual,
         };
 
+        let doc_updated_at = row
+            .new_document_state
+            .get("updatedAt")
+            .and_then(|v| v.as_i64());
+
         if has_conflict {
+            logged.push(RecordedOp {
+                doc_id: doc_id.clone(),
+                op: "conflict",
+                doc_updated_at,
+            });
             if let Some(master) = current_clean {
                 conflicts.push(master);
             }
             continue;
         }
+
+        let is_delete = row
+            .new_document_state
+            .get("_deleted")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        logged.push(RecordedOp {
+            doc_id: doc_id.clone(),
+            op: if is_delete { "delete" } else { "write" },
+            doc_updated_at,
+        });
 
         // Prepare doc for the storage backend: add _id = doc.id, carry current _rev for CouchDB
         let mut stored = row.new_document_state.clone();
@@ -369,6 +396,35 @@ pub async fn push(
     if !docs_to_write.is_empty() {
         state.linker.bulk_docs(&db_name, docs_to_write).await
             .map_err(|e| AppError::Internal(anyhow::anyhow!("storage write error: {e}")))?;
+    }
+
+    // Audit trail: log which device produced these writes/deletes. Recorded only
+    // after the storage write succeeded, and off the request path so a slow or
+    // failing log never delays or breaks a sync.
+    if !logged.is_empty() {
+        let client = req
+            .client
+            .unwrap_or_default()
+            .merged_with_headers(&headers);
+        let user_agent = headers
+            .get("User-Agent")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+        let db = state.db.clone();
+        let retention = state.config.sync_events_retention_days;
+        tokio::spawn(async move {
+            sync_events::record(
+                &db,
+                retention,
+                app_id,
+                owner_id,
+                &client,
+                &user_agent,
+                &logged,
+            )
+            .await;
+        });
     }
 
     Ok(Json(PushResponse { conflicts }))

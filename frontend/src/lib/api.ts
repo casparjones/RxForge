@@ -1,5 +1,32 @@
 const BASE = '/api/v1';
 
+/** One entry in an app's sync audit trail. */
+export interface SyncEvent {
+  id: string;
+  device_id: string;
+  device_label: string;
+  platform: string;
+  app_version: string;
+  reason: string;
+  doc_id: string;
+  op: 'write' | 'delete' | 'conflict';
+  doc_updated_at: number | null;
+  created_at: string;
+}
+
+/** Aggregated per-device view of the audit trail. */
+export interface SyncDevice {
+  device_id: string;
+  device_label: string;
+  platform: string;
+  app_version: string;
+  writes: number;
+  deletes: number;
+  conflicts: number;
+  first_seen: string;
+  last_seen: string;
+}
+
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('rxforge_token');
   const res = await fetch(BASE + path, {
@@ -62,6 +89,27 @@ export const api = {
       purge: (appId: string, tokenId: string) =>
         fetchApi(`/apps/${appId}/tokens/${tokenId}/purge`, { method: 'DELETE' }),
     },
+    syncEvents: {
+      list: (
+        appId: string,
+        page = 1,
+        perPage = 50,
+        filters: { device_id?: string; doc_id?: string; op?: string } = {}
+      ) => {
+        const params = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+        if (filters.device_id) params.set('device_id', filters.device_id);
+        if (filters.doc_id) params.set('doc_id', filters.doc_id);
+        if (filters.op) params.set('op', filters.op);
+        return fetchApi<{
+          events: SyncEvent[];
+          total: number;
+          page: number;
+          per_page: number;
+          pages: number;
+        }>(`/apps/${appId}/sync-events?${params.toString()}`);
+      },
+      devices: (appId: string) => fetchApi<SyncDevice[]>(`/apps/${appId}/sync-devices`),
+    },
     db: {
       list: (appId: string, page = 1, perPage = 20, search = '', deleted: 'active' | 'deleted' | 'all' = 'active') => {
         const params = new URLSearchParams({ page: String(page), per_page: String(perPage), deleted });
@@ -82,6 +130,10 @@ export const api = {
         }),
       deleteAll: (appId: string) =>
         fetchApi<{ deleted: number }>(`/apps/${appId}/db/docs`, { method: 'DELETE' }),
+      purge: (appId: string, ids: string[]) =>
+        fetchApi<{ purged: number }>(`/apps/${appId}/db/purge`, { method: 'POST', body: JSON.stringify({ ids }) }),
+      purgeDeleted: (appId: string) =>
+        fetchApi<{ purged: number }>(`/apps/${appId}/db/purge-deleted`, { method: 'POST' }),
     },
   },
   admin: {
@@ -110,6 +162,10 @@ export const api = {
           }),
         deleteAll: (userId: string, appId: string) =>
           fetchApi<{ deleted: number }>(`/admin/users/${userId}/apps/${appId}/db/docs`, { method: 'DELETE' }),
+        purge: (userId: string, appId: string, ids: string[]) =>
+          fetchApi<{ purged: number }>(`/admin/users/${userId}/apps/${appId}/db/purge`, { method: 'POST', body: JSON.stringify({ ids }) }),
+        purgeDeleted: (userId: string, appId: string) =>
+          fetchApi<{ purged: number }>(`/admin/users/${userId}/apps/${appId}/db/purge-deleted`, { method: 'POST' }),
       },
     },
     analytics: { global: () => fetchApi<any>('/analytics/global') },

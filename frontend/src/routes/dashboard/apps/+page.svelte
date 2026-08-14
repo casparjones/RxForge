@@ -8,6 +8,7 @@
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import { goto } from '$app/navigation';
 	import DbBrowser from '$lib/components/DbBrowser.svelte';
+	import SyncHistory from '$lib/components/SyncHistory.svelte';
 
 	let apps = $state<any[]>([]);
 	let loading = $state(true);
@@ -19,6 +20,7 @@
 	let creating = $state(false);
 
 	let browseApp = $state<any | null>(null);
+	let historyApp = $state<any | null>(null);
 
 	// Expanded / edit state per app (kept for token section, no longer used for edit form)
 	let expandedApp = $state<string | null>(null);
@@ -487,6 +489,17 @@ Generate complete TypeScript code that:
 								>
 									<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
 									{$t('common.browse')}
+								</button>
+								<button
+									onclick={() => { historyApp = app; }}
+									title={$t('syncLog.subtitle')}
+									class="text-sm font-medium px-3 py-1.5 rounded-lg transition flex items-center gap-1.5"
+									style="color:#38bdf8; border:1px solid rgba(56,189,248,.25); background:rgba(56,189,248,.06);"
+									onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(56,189,248,.12)'; }}
+									onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(56,189,248,.06)'; }}
+								>
+									<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+									{$t('syncLog.open')}
 								</button>
 								<button
 									onclick={() => goto(`/dashboard/apps/${app.id}/edit`)}
@@ -1038,5 +1051,12 @@ Generate complete TypeScript code that:
 	<DbBrowser
 		app={browseApp}
 		onclose={() => { browseApp = null; }}
+	/>
+{/if}
+
+{#if historyApp}
+	<SyncHistory
+		app={historyApp}
+		onclose={() => { historyApp = null; }}
 	/>
 {/if}

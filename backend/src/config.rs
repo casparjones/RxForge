@@ -17,6 +17,9 @@ pub struct Config {
     pub register_invite_code: Option<String>,
     /// If set, a user logging in with this email is auto-promoted to superadmin.
     pub admin_user_email: Option<String>,
+    /// How long the sync audit trail (`sync_events`) is kept, in days.
+    /// Older rows are pruned opportunistically after a push. 0 disables pruning.
+    pub sync_events_retention_days: i32,
 }
 
 impl Config {
@@ -39,6 +42,10 @@ impl Config {
             frontend_dir: env::var("FRONTEND_DIR").unwrap_or_else(|_| "./frontend/build".to_string()),
             register_invite_code: env::var("REGISTER_INVITE_CODE").ok(),
             admin_user_email: env::var("ADMIN_USER_EMAIL").ok(),
+            sync_events_retention_days: env::var("SYNC_EVENTS_RETENTION_DAYS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(90),
         })
     }
 }

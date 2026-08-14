@@ -94,6 +94,7 @@ pub async fn spawn_app_with_couchdb_url(couchdb_url: &str) -> TestApp {
         frontend_dir: "./dist".to_string(),
         register_invite_code: None,
         admin_user_email: None,
+        sync_events_retention_days: 90,
     };
 
     let linker: Arc<dyn Linker + Send + Sync> = Arc::new(CouchDbLinker(CouchDbClient::new(

@@ -10,6 +10,7 @@ pub mod auth;
 pub mod db_browser;
 pub mod oauth;
 pub mod sync;
+pub mod sync_events;
 pub mod tester;
 pub mod tokens;
 
@@ -19,6 +20,7 @@ pub fn api_router() -> Router<AppState> {
         .nest("/api/v1/apps", apps::router())
         .nest("/api/v1/apps", db_browser::router())
         .nest("/api/v1/apps", tokens::router())
+        .nest("/api/v1/apps", sync_events::router())
         .nest("/api/v1/sync", sync::router())
         .nest("/api/v1/admin", admin::router())
         .nest("/api/v1/analytics", analytics::router())
