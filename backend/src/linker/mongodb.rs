@@ -423,4 +423,26 @@ impl Linker for MongoDbLinker {
             .with_context(|| format!("failed to delete all MongoDB docs from {db_name}"))?;
         Ok(result.deleted_count as usize)
     }
+
+    async fn purge_docs(&self, db_name: &str, ids: &[String]) -> anyhow::Result<usize> {
+        let ids: Vec<String> = ids.iter().filter(|id| id.as_str() != "__meta").cloned().collect();
+        if ids.is_empty() {
+            return Ok(0);
+        }
+        let result = self
+            .collection(db_name)
+            .delete_many(doc! { "_id": { "$in": ids } })
+            .await
+            .with_context(|| format!("failed to purge MongoDB docs from {db_name}"))?;
+        Ok(result.deleted_count as usize)
+    }
+
+    async fn purge_deleted(&self, db_name: &str) -> anyhow::Result<usize> {
+        let result = self
+            .collection(db_name)
+            .delete_many(doc! { "_deleted": true, "_id": { "$ne": "__meta" } })
+            .await
+            .with_context(|| format!("failed to purge deleted MongoDB docs from {db_name}"))?;
+        Ok(result.deleted_count as usize)
+    }
 }

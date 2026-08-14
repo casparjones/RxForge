@@ -1,6 +1,6 @@
 use axum::{
     extract::{Path, Query, State},
-    routing::{get, patch, put},
+    routing::{get, patch, post, put},
     Json, Router,
 };
 use chrono::{DateTime, Utc};
@@ -29,6 +29,13 @@ pub fn router() -> Router<AppState> {
             "/users/{user_id}/apps/{app_id}/db/docs/{doc_id}",
             get(admin_get_doc).delete(admin_delete_doc),
         )
+        .route("/users/{user_id}/apps/{app_id}/db/purge", post(admin_purge_docs))
+        .route("/users/{user_id}/apps/{app_id}/db/purge-deleted", post(admin_purge_deleted))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AdminPurgeBody {
+    pub ids: Vec<String>,
 }
 
 #[derive(Debug, sqlx::FromRow)]
@@ -220,7 +227,7 @@ pub async fn list_user_apps(
          SELECT a.id, a.name, a.auth_type, a.db_scope, 'consented' AS relationship, oc.created_at
          FROM oauth_consents oc
          JOIN apps a ON a.id = oc.client_id
-         WHERE oc.user_id = $1
+         WHERE oc.user_id = $1 AND a.owner_id <> $1
          ORDER BY created_at DESC",
     )
     .bind(target_id)
@@ -372,6 +379,37 @@ pub async fn admin_delete_all(
         .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
 
     Ok(Json(serde_json::json!({ "deleted": deleted })))
+}
+
+pub async fn admin_purge_docs(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path((user_id, app_id)): Path<(Uuid, Uuid)>,
+    Json(body): Json<AdminPurgeBody>,
+) -> AppResult<Json<serde_json::Value>> {
+    require_permission(&user, "users:manage")?;
+
+    let db_name = resolve_admin_db(&state, app_id, user_id).await?;
+
+    let purged = state.linker.purge_docs(&db_name, &body.ids).await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
+
+    Ok(Json(serde_json::json!({ "purged": purged })))
+}
+
+pub async fn admin_purge_deleted(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path((user_id, app_id)): Path<(Uuid, Uuid)>,
+) -> AppResult<Json<serde_json::Value>> {
+    require_permission(&user, "users:manage")?;
+
+    let db_name = resolve_admin_db(&state, app_id, user_id).await?;
+
+    let purged = state.linker.purge_deleted(&db_name).await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
+
+    Ok(Json(serde_json::json!({ "purged": purged })))
 }
 
 #[cfg(test)]

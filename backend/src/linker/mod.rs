@@ -127,4 +127,8 @@ pub trait Linker: Send + Sync {
         rev: &str,
     ) -> anyhow::Result<Value>;
     async fn delete_all_docs(&self, db_name: &str) -> anyhow::Result<usize>;
+    /// Permanently remove the given documents (hard delete — not a tombstone).
+    async fn purge_docs(&self, db_name: &str, ids: &[String]) -> anyhow::Result<usize>;
+    /// Permanently remove every tombstone (documents with `_deleted == true`).
+    async fn purge_deleted(&self, db_name: &str) -> anyhow::Result<usize>;
 }

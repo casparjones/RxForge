@@ -116,4 +116,18 @@ impl Linker for CouchDbLinker {
             .await
             .with_context(|| format!("failed to delete all CouchDB docs from {db_name}"))
     }
+
+    async fn purge_docs(&self, db_name: &str, ids: &[String]) -> anyhow::Result<usize> {
+        self.0
+            .purge_docs(db_name, ids)
+            .await
+            .with_context(|| format!("failed to purge CouchDB docs from {db_name}"))
+    }
+
+    async fn purge_deleted(&self, db_name: &str) -> anyhow::Result<usize> {
+        self.0
+            .purge_deleted(db_name)
+            .await
+            .with_context(|| format!("failed to purge deleted CouchDB docs from {db_name}"))
+    }
 }

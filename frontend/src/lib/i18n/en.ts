@@ -194,6 +194,18 @@ export const en = {
     filterAll: 'All',
     deletedBadge: 'deleted',
     noResults: 'No matching documents.',
+    reload: 'Reload',
+    selectAll: 'Select all',
+    selectDoc: 'Select document',
+    selectedCount: '{n} selected',
+    deleteSelected: 'Delete selected ({n})',
+    deselect: 'Deselect',
+    deleteSelectedConfirm: 'Delete {n} document(s)? This cannot be undone.',
+    purgeSelected: 'Purge permanently ({n})',
+    purgeSelectedConfirm: 'Permanently PURGE {n} deleted document(s)? This cannot be undone and will not be synced anymore. Make sure all clients are up to date.',
+    purgeAllDeleted: 'Purge all deleted',
+    purgeAllConfirm: 'Permanently PURGE all {n} deleted documents? This cannot be undone. Only do this once all clients are up to date.',
+    documentsPurged: '{n} document(s) permanently purged.',
   },
 
   rights: {

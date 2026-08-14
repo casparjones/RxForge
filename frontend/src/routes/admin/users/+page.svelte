@@ -395,7 +395,7 @@
 						</div>
 					{:else}
 						<div class="space-y-3">
-							{#each userApps as app (app.id)}
+							{#each userApps as app (app.id + '-' + app.relationship)}
 								<div class="rounded-xl overflow-hidden" style="background:var(--c-surface-2); border:1px solid var(--c-border);">
 									<!-- App header -->
 									<div class="px-5 py-4">

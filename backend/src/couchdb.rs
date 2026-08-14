@@ -546,6 +546,83 @@ impl CouchDbClient {
         Ok(count)
     }
 
+    /// Collect `(id, rev, deleted)` for every leaf change from `_changes`.
+    async fn changes_index(&self, db_name: &str) -> Result<Vec<(String, String, bool)>> {
+        let url = format!("{}/{}/_changes", self.base_url, db_name);
+        let response = self.client.get(&url).basic_auth(&self.user, Some(&self.password)).send().await?;
+        if response.status() == StatusCode::NOT_FOUND {
+            return Ok(vec![]);
+        }
+        if !response.status().is_success() {
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("CouchDB _changes: {}", body);
+        }
+        let data: Value = response.json().await?;
+        let mut out = Vec::new();
+        if let Some(rows) = data.get("results").and_then(|r| r.as_array()) {
+            for row in rows {
+                let id = match row.get("id").and_then(|v| v.as_str()) {
+                    Some(id) if !id.starts_with('_') => id.to_string(),
+                    _ => continue,
+                };
+                let rev = row
+                    .get("changes")
+                    .and_then(|c| c.as_array())
+                    .and_then(|c| c.first())
+                    .and_then(|c| c.get("rev"))
+                    .and_then(|v| v.as_str());
+                let deleted = row.get("deleted").and_then(|v| v.as_bool()).unwrap_or(false);
+                if let Some(rev) = rev {
+                    out.push((id, rev.to_string(), deleted));
+                }
+            }
+        }
+        Ok(out)
+    }
+
+    async fn purge_by_revs(&self, db_name: &str, body: serde_json::Map<String, Value>) -> Result<usize> {
+        if body.is_empty() {
+            return Ok(0);
+        }
+        let count = body.len();
+        let url = format!("{}/{}/_purge", self.base_url, db_name);
+        let res = self
+            .client
+            .post(&url)
+            .basic_auth(&self.user, Some(&self.password))
+            .json(&Value::Object(body))
+            .send()
+            .await?;
+        if !res.status().is_success() {
+            let body = res.text().await.unwrap_or_default();
+            anyhow::bail!("CouchDB _purge: {}", body);
+        }
+        Ok(count)
+    }
+
+    /// Permanently remove the given documents (hard delete via `_purge`).
+    pub async fn purge_docs(&self, db_name: &str, ids: &[String]) -> Result<usize> {
+        let wanted: std::collections::HashSet<&str> = ids.iter().map(String::as_str).collect();
+        let mut body = serde_json::Map::new();
+        for (id, rev, _deleted) in self.changes_index(db_name).await? {
+            if wanted.contains(id.as_str()) {
+                body.insert(id, serde_json::json!([rev]));
+            }
+        }
+        self.purge_by_revs(db_name, body).await
+    }
+
+    /// Permanently remove every tombstone (hard delete via `_purge`).
+    pub async fn purge_deleted(&self, db_name: &str) -> Result<usize> {
+        let mut body = serde_json::Map::new();
+        for (id, rev, deleted) in self.changes_index(db_name).await? {
+            if deleted {
+                body.insert(id, serde_json::json!([rev]));
+            }
+        }
+        self.purge_by_revs(db_name, body).await
+    }
+
     /// Fetch a single document by id.
     pub async fn get_doc(&self, db_name: &str, doc_id: &str) -> Result<Option<Value>> {
         let url = format!(

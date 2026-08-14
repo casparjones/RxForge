@@ -48,6 +48,24 @@
 		loadPage(1);
 	}
 
+	// Multi-select for bulk delete / purge.
+	// In the "deleted" view the selection targets tombstones for permanent removal (purge);
+	// in other views it targets live documents for a (soft) delete.
+	let selectedIds = $state<string[]>([]);
+	let purgeMode = $derived(deletedFilter === 'deleted');
+	let selectableIds = $derived(
+		purgeMode ? docs.map(d => d._id) : docs.filter(d => !isDeleted(d)).map(d => d._id)
+	);
+	let allSelected = $derived(selectableIds.length > 0 && selectableIds.every(id => selectedIds.includes(id)));
+
+	function toggleSelect(id: string) {
+		selectedIds = selectedIds.includes(id) ? selectedIds.filter(x => x !== id) : [...selectedIds, id];
+	}
+	function toggleSelectAll() {
+		selectedIds = allSelected ? [] : [...selectableIds];
+	}
+	function clearSelection() { selectedIds = []; }
+
 	// Selected document
 	let selectedDoc = $state<any | null>(null);
 	let editJson = $state('');
@@ -65,7 +83,7 @@
 	}
 
 	async function loadPage(p: number) {
-		loading = true; listError = '';
+		loading = true; listError = ''; selectedIds = [];
 		try {
 			let res;
 			if (userId) {
@@ -141,6 +159,57 @@
 		}
 	}
 
+	async function deleteSelected() {
+		const targets = docs.filter(d => selectedIds.includes(d._id) && !isDeleted(d));
+		let ok = 0;
+		for (const doc of targets) {
+			try {
+				if (userId) {
+					await api.admin.users.db.deleteDoc(userId, app.id, doc._id, doc._rev);
+				} else {
+					await api.apps.db.deleteDoc(app.id, doc._id, doc._rev);
+				}
+				ok++;
+			} catch (e: any) {
+				toast.error('Error: ' + e.message);
+			}
+		}
+		if (selectedDoc && targets.some(d => d._id === selectedDoc._id)) selectedDoc = null;
+		selectedIds = [];
+		await loadPage(page);
+		toast.success(get(t)('db.documentsDeleted', { n: ok }));
+	}
+
+	async function purgeSelected() {
+		const ids = docs.filter(d => selectedIds.includes(d._id)).map(d => d._id);
+		if (!ids.length) return;
+		try {
+			const res = userId
+				? await api.admin.users.db.purge(userId, app.id, ids)
+				: await api.apps.db.purge(app.id, ids);
+			if (selectedDoc && ids.includes(selectedDoc._id)) selectedDoc = null;
+			selectedIds = [];
+			await loadPage(page);
+			toast.success(get(t)('db.documentsPurged', { n: res.purged }));
+		} catch (e: any) {
+			toast.error('Error: ' + e.message);
+		}
+	}
+
+	async function purgeAllDeleted() {
+		try {
+			const res = userId
+				? await api.admin.users.db.purgeDeleted(userId, app.id)
+				: await api.apps.db.purgeDeleted(app.id);
+			selectedDoc = null;
+			selectedIds = [];
+			await loadPage(1);
+			toast.success(get(t)('db.documentsPurged', { n: res.purged }));
+		} catch (e: any) {
+			toast.error('Error: ' + e.message);
+		}
+	}
+
 	function preview(doc: any): string {
 		const skip = new Set(['_id', '_rev', '_deleted']);
 		const entries = Object.entries(doc).filter(([k]) => !skip.has(k)).slice(0, 2);
@@ -180,7 +249,31 @@
 			<span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(124,124,255,.12); color:#7c7cff;">{$t('db.documents', { n: total })}</span>
 		{/if}
 		<div class="ml-auto flex items-center gap-2">
-			{#if total > 0}
+			<button
+				onclick={() => loadPage(page)}
+				disabled={loading}
+				class="flex items-center justify-center w-8 h-8 rounded-lg transition shrink-0 disabled:opacity-40"
+				style="color:var(--c-muted); border:1px solid var(--c-border); background:transparent;"
+				onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.color='var(--c-text)'; (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,.06)'; }}
+				onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.color='var(--c-muted)'; (e.currentTarget as HTMLElement).style.background='transparent'; }}
+				title={$t('db.reload')}
+				aria-label={$t('db.reload')}
+			>
+				<svg class="w-4 h-4 {loading ? 'animate-spin' : ''}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.5 10a5.5 5.5 0 019.401-3.889L15 7.21V4.75a.75.75 0 011.5 0v4.5a.75.75 0 01-.75.75h-4.5a.75.75 0 010-1.5h2.638l-1.03-1.03A4 4 0 106 10a.75.75 0 01-1.5 0z" clip-rule="evenodd"/></svg>
+			</button>
+			{#if purgeMode && total > 0}
+				<button
+					onclick={() => openConfirm(
+						$t('db.purgeAllDeleted'),
+						$t('db.purgeAllConfirm', { n: total }),
+						() => { confirmOpen = false; purgeAllDeleted(); }
+					)}
+					class="text-sm font-semibold px-3 py-1.5 rounded-lg transition"
+					style="color:#fff; background:#dc2626;"
+					onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.opacity='.85'; }}
+					onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.opacity='1'; }}
+				>{$t('db.purgeAllDeleted')}</button>
+			{:else if total > 0}
 				<button
 					onclick={() => openConfirm(
 						$t('db.clearCollection'),
@@ -236,6 +329,44 @@
 				</div>
 			</div>
 
+			<!-- Selection toolbar -->
+			{#if !loading && selectableIds.length > 0}
+				<div class="shrink-0 flex items-center gap-2 px-3 py-2 text-xs" style="border-bottom:1px solid var(--c-border); background:var(--c-surface);">
+					<label class="flex items-center gap-2 cursor-pointer" style="color:var(--c-muted);">
+						<input type="checkbox" checked={allSelected} onchange={toggleSelectAll} style="accent-color:#7c7cff;" />
+						{selectedIds.length ? $t('db.selectedCount', { n: selectedIds.length }) : $t('db.selectAll')}
+					</label>
+					{#if selectedIds.length}
+						{#if purgeMode}
+							<button
+								onclick={() => openConfirm(
+									$t('db.purgeSelected', { n: selectedIds.length }),
+									$t('db.purgeSelectedConfirm', { n: selectedIds.length }),
+									() => { confirmOpen = false; purgeSelected(); }
+								)}
+								class="ml-auto font-semibold px-2 py-1 rounded-md transition"
+								style="color:#fff; background:#dc2626;"
+								onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.opacity='.85'; }}
+								onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.opacity='1'; }}
+							>{$t('db.purgeSelected', { n: selectedIds.length })}</button>
+						{:else}
+							<button
+								onclick={() => openConfirm(
+									$t('db.deleteDocument'),
+									$t('db.deleteSelectedConfirm', { n: selectedIds.length }),
+									() => { confirmOpen = false; deleteSelected(); }
+								)}
+								class="ml-auto font-medium px-2 py-1 rounded-md transition"
+								style="color:#f87171; border:1px solid rgba(248,113,113,.3);"
+								onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background='rgba(248,113,113,.1)'; }}
+								onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background='transparent'; }}
+							>{$t('db.deleteSelected', { n: selectedIds.length })}</button>
+						{/if}
+						<button onclick={clearSelection} class="px-2 py-1 rounded-md" style="color:var(--c-muted); border:1px solid var(--c-border);">{$t('db.deselect')}</button>
+					{/if}
+				</div>
+			{/if}
+
 			<!-- List body -->
 			<div class="flex-1 overflow-y-auto">
 				{#if loading}
@@ -268,6 +399,19 @@
 							onmouseenter={(e) => { if (selectedDoc?._id !== doc._id) (e.currentTarget as HTMLElement).style.background='var(--c-surface)'; }}
 							onmouseleave={(e) => { if (selectedDoc?._id !== doc._id) (e.currentTarget as HTMLElement).style.background='transparent'; }}
 						>
+							{#if purgeMode || !isDeleted(doc)}
+								<input
+									type="checkbox"
+									checked={selectedIds.includes(doc._id)}
+									onclick={(e) => e.stopPropagation()}
+									onchange={() => toggleSelect(doc._id)}
+									class="shrink-0"
+									style="accent-color:{purgeMode ? '#dc2626' : '#7c7cff'};"
+									aria-label={$t('db.selectDoc')}
+								/>
+							{:else}
+								<span class="shrink-0" style="width:13px;"></span>
+							{/if}
 							<div class="flex-1 min-w-0">
 								<div class="flex items-center gap-1.5">
 									{#if isDeleted(doc)}

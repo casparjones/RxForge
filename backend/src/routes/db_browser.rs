@@ -1,6 +1,6 @@
 use axum::{
     extract::{Path, Query, State},
-    routing::get,
+    routing::{get, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
@@ -18,6 +18,13 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/{app_id}/db/docs", get(list_docs).delete(delete_all))
         .route("/{app_id}/db/docs/{doc_id}", get(get_doc).put(put_doc).delete(delete_doc))
+        .route("/{app_id}/db/purge", post(purge_docs))
+        .route("/{app_id}/db/purge-deleted", post(purge_deleted))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PurgeBody {
+    pub ids: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -158,4 +165,35 @@ pub async fn delete_all(
         .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
 
     Ok(Json(serde_json::json!({ "deleted": deleted })))
+}
+
+pub async fn purge_docs(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(app_id): Path<Uuid>,
+    Json(body): Json<PurgeBody>,
+) -> AppResult<Json<Value>> {
+    let user_id = Uuid::parse_str(user.user_id())
+        .map_err(|_| AppError::Internal(anyhow::anyhow!("Invalid user ID")))?;
+    let db_name = resolve_app_db(&state, app_id, user_id).await?;
+
+    let purged = state.linker.purge_docs(&db_name, &body.ids).await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
+
+    Ok(Json(serde_json::json!({ "purged": purged })))
+}
+
+pub async fn purge_deleted(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(app_id): Path<Uuid>,
+) -> AppResult<Json<Value>> {
+    let user_id = Uuid::parse_str(user.user_id())
+        .map_err(|_| AppError::Internal(anyhow::anyhow!("Invalid user ID")))?;
+    let db_name = resolve_app_db(&state, app_id, user_id).await?;
+
+    let purged = state.linker.purge_deleted(&db_name).await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
+
+    Ok(Json(serde_json::json!({ "purged": purged })))
 }

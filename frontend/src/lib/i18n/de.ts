@@ -194,6 +194,18 @@ export const de = {
     filterAll: 'Alle',
     deletedBadge: 'gelöscht',
     noResults: 'Keine passenden Dokumente.',
+    reload: 'Neu laden',
+    selectAll: 'Alle auswählen',
+    selectDoc: 'Dokument auswählen',
+    selectedCount: '{n} ausgewählt',
+    deleteSelected: 'Auswahl löschen ({n})',
+    deselect: 'Abwählen',
+    deleteSelectedConfirm: '{n} Dokument(e) löschen? Das kann nicht rückgängig gemacht werden.',
+    purgeSelected: 'Endgültig entfernen ({n})',
+    purgeSelectedConfirm: '{n} gelöschte(s) Dokument(e) ENDGÜLTIG entfernen? Das kann nicht rückgängig gemacht werden und wird nicht mehr synchronisiert. Stelle sicher, dass alle Clients aktuell sind.',
+    purgeAllDeleted: 'Alle gelöschten entfernen',
+    purgeAllConfirm: 'Alle {n} gelöschten Dokumente ENDGÜLTIG entfernen? Das kann nicht rückgängig gemacht werden. Nur ausführen, wenn alle Clients auf dem aktuellen Stand sind.',
+    documentsPurged: '{n} Dokument(e) endgültig entfernt.',
   },
 
   rights: {
